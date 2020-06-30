@@ -104,7 +104,6 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
     /**
      * Returns an arbitrary list of [limit] items from the table
      */
-    @Deprecated(message = "please use obtainListing() instead")
     suspend fun obtainAll(queryContext: QueryContext, limit: Int): SrList<TEntity> =
         Wrap {
             query { this.selectAll().limit(limit).toSet() }.get()

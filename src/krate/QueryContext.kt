@@ -42,17 +42,17 @@ interface QueryContext {
 
     val objectMapper: ObjectMapper
 
-    /** See [krate.persistence.models.Repository.getAll] */
+    /** @see [krate.persistence.models.Repository.getAll] */
     suspend fun <TEntity : Entity> Repository<TEntity>.obtainAll(limit: Int): SrList<TEntity> =
         this.getAll(this@QueryContext, limit)
 
-    /** See [krate.persistence.models.Repository.get] */
+    /** @see [krate.persistence.models.Repository.get] */
     suspend fun <TEntity : Entity> Repository<TEntity>.obtain(id: UUID): Sr<TEntity> =
         this@QueryContext.entityCache.findOrAsync(id) {
             this.get(this@QueryContext, id).get()
         }
 
-    /** See [krate.persistence.models.Repository.get] */
+    /** @see [krate.persistence.models.Repository.get] */
     suspend fun <TEntity : Entity> Repository<TEntity>.obtainListing (
         selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
         quantity: Int,
@@ -62,18 +62,18 @@ interface QueryContext {
     ): Sr<Pair<List<TEntity>, Boolean>> =
         this.queryListing(this@QueryContext, selectCondition, quantity, page, orderBy, sortOrder)
 
-    /** See [krate.persistence.models.Repository.update] */
+    /** @see [krate.persistence.models.Repository.update] */
     suspend fun <TEntity : Entity> Repository<TEntity>.update(res: TEntity, rawData: MappedData): Sr<TEntity> =
         this.update(this@QueryContext, res, rawData)
 
-    /** See [krate.persistence.models.Repository.updateWithProperties] */
+    /** @see [krate.persistence.models.Repository.updateWithProperties] */
     suspend fun <TEntity : Entity> Repository<TEntity>.updateWithProperties (
         entity: TEntity,
         data: Map<out KProperty1<TEntity, Any>, Any>
     ): Sr<TEntity> =
         this.updateWithProperties(this@QueryContext, entity, data)
 
-    /** See [reflectr.entity.instantiation.construct] */
+    /** @see [reflectr.entity.instantiation.construct] */
     @ExperimentalStdlibApi
     suspend fun <TMapped : Mapped> KClass<out TMapped>.construct (
         data:               MappedData,
@@ -81,7 +81,7 @@ interface QueryContext {
     ): Sr<TMapped> =
         this.construct(data, objectMapper, { klass, uuid -> this@QueryContext.repository(klass).get(queryContext = this@QueryContext, id = uuid) }, externallyProvided)
 
-    /** See [reflectr.entity.update] */
+    /** @see [reflectr.entity.update] */
     @ExperimentalStdlibApi
     suspend fun <R : Mapped> R.update(rawData: MappedData): Sr<R> =
         this.update(rawData, this@QueryContext.objectMapper, fetcher = { klass, id -> this@QueryContext.repository(klass).get(id = id, queryContext = this@QueryContext) })

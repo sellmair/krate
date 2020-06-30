@@ -12,7 +12,7 @@ import java.util.*
 import kotlin.reflect.KProperty1
 
 /**
- * Represents a binding between a [property] of [TEntity]`::class and it's storage in the database
+ * Represents a binding between a [property] of [TEntity]::class and it's storage in the database
  *
  * @see Value
  * @see Reference
