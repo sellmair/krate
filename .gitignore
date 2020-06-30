@@ -1,0 +1,5 @@
+.gradle
+.idea
+docs/_site
+docs/krate
+build/

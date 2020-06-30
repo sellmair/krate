@@ -1,0 +1,26 @@
+theme: "minima"
+
+title: Krate
+description: >- # this means to ignore newlines until "baseurl:"
+
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "" # the base hostname & protocol for your site, e.g. http://example.com
+github_username:  blogify-dev
+
+# Adding this to yeet the header
+header_pages:
+  - about.md
+
+defaults:
+  -
+    scope:
+      path: "index.md"
+    values:
+      layout: "home"
+  -
+    scope:
+      path: "**/*.md"
+    values:
+      layout: "page"
+
+source: "krate"
