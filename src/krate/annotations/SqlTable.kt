@@ -1,15 +1,14 @@
 package krate.annotations
 
-import reflectr.entity.Entity
 import krate.EntityTable
+
+import reflectr.entity.Entity
 
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
 
 /**
- * Associates a [Entity] class to a [EntityTable]
- *
- * @param table the class of the table in which instances of this class are stored
+ * Associates an [Entity] class to a [EntityTable]. Used for finding which table to operate on when using a `repository<...>()` call.
  *
  * @author Benjozork
  */
