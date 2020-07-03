@@ -2,9 +2,10 @@
 
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.dokka.gradle.DokkaTask
+import java.net.URL
 
-val kolor_version: String by project
-val result_version: String by project
+val kolor_version:     String by project
+val result_version:    String by project
 val pg_driver_version: String by project
 val exposed_version:   String by project
 val hikari_version:    String by project
@@ -39,7 +40,7 @@ dependencies {
 
     // Reflectr
 
-    api("dev.31416", "reflectr", "0.1.0")
+    api("com.github.blogify-dev", "reflectr", "master-SNAPSHOT")
 
     // Jackson
 
@@ -114,6 +115,10 @@ tasks {
             reportUndocumented = false
 
             skipEmptyPackages = true
+
+            externalDocumentationLink {
+                url = URL("https://docs.31416.dev/reflectr/")
+            }
 
             sourceLink {
                 path = "./"
