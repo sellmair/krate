@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Assertions.*
 
 import com.andreapivetta.kolor.lightRed
 
-@ExperimentalStdlibApi
 object TestEntityTable : EntityTable<TestEntity>() {
     val one = text("one")
 
@@ -19,13 +18,12 @@ object TestEntityTable : EntityTable<TestEntity>() {
         bind(one, TestEntity::one)
     }
 }
-@ExperimentalStdlibApi
+
 @SqlTable(TestEntityTable::class)
 data class TestEntity (
     val one: String
 ) : Entity()
 
-@ExperimentalStdlibApi
 class SingleRefOptimizerTest {
 
     @Test fun `should create proper join for TestEntity`() {

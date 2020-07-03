@@ -26,7 +26,6 @@ import java.util.*
  *
  * @author Benjozork
  */
-@ExperimentalStdlibApi
 object QueryOptimizer {
 
     private val classJoinCache = MapCache<KClass<out Entity>, ColumnSet>()
@@ -55,7 +54,6 @@ object QueryOptimizer {
      * @param klass          the class associated with [TEntity], used for reflection purposes
      * @param rows           a set of [result rows][ResultRow], each to be converted to instances of [TEntity]
      */
-    @ExperimentalStdlibApi
     suspend fun <TEntity : Entity> convertOptimizedRows (
         queryContext: QueryContext,
         klass: KClass<TEntity>,

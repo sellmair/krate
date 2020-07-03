@@ -42,7 +42,6 @@ import kotlin.reflect.KProperty1
  *
  * @author Benjozork, hamza1311
  */
-@ExperimentalStdlibApi
 abstract class EntityTable<TEntity : Entity> : PgTable() {
 
     /**
@@ -158,7 +157,6 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
      * @param aliasToUse      a [table alias][Alias] to specify which columns should be used when data for multiple
      *                        instances of [TEntity] might be present in a single row
      */
-    @ExperimentalStdlibApi
     open suspend fun convert (
         queryContext: QueryContext,
         source: ResultRow,

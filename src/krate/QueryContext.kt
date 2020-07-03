@@ -74,7 +74,6 @@ interface QueryContext {
         this.updateWithProperties(this@QueryContext, entity, data)
 
     /** @see [reflectr.entity.instantiation.construct] */
-    @ExperimentalStdlibApi
     suspend fun <TMapped : Mapped> KClass<out TMapped>.construct (
         data:               MappedData,
         externallyProvided: Set<PropMap.PropertyHandle.Ok> = setOf()
@@ -82,7 +81,6 @@ interface QueryContext {
         this.construct(data, objectMapper, { klass, uuid -> this@QueryContext.repository(klass).get(queryContext = this@QueryContext, id = uuid) }, externallyProvided)
 
     /** @see [reflectr.entity.update] */
-    @ExperimentalStdlibApi
     suspend fun <R : Mapped> R.update(rawData: MappedData): Sr<R> =
         this.update(rawData, this@QueryContext.objectMapper, fetcher = { klass, id -> this@QueryContext.repository(klass).get(id = id, queryContext = this@QueryContext) })
 

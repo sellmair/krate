@@ -14,7 +14,6 @@ import kotlin.reflect.KClass
  * Creates a [query][Query] for retrieving both an instance of [TEntity]
  * and all of it's [single reference][SqlBinding.Reference] properties.
  */
-@ExperimentalStdlibApi
 fun <TEntity : Entity> makeJoinForClass(klass: KClass<TEntity>): ColumnSet {
     val entityTable = klass.table
     val tableSingleRefBindings = entityTable.bindings.filter {

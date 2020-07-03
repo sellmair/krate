@@ -14,7 +14,6 @@ import org.jetbrains.exposed.sql.*
 
 import java.util.*
 
-@ExperimentalStdlibApi
 open class PostgresRepository<R : Entity>(val table: EntityTable<R>) :
     Repository<R> {
 

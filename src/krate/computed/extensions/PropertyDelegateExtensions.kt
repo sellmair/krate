@@ -21,7 +21,6 @@ import java.util.*
  *
  * @author Benjozork
  */
-@ExperimentalStdlibApi
 fun <TEntity : Entity, TProperty : Any?> TEntity.aggregate (
     aggregateExpr: Expression<TProperty>,
     rightTable: Table,

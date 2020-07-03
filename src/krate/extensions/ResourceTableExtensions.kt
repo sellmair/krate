@@ -16,7 +16,6 @@ import java.util.*
  *
  * @author Benjozork
  */
-@ExperimentalStdlibApi
 val <TEntity : Entity> EntityTable<TEntity>.klass get() = this.bindings.first().property.klass
 
 /**
@@ -25,6 +24,5 @@ val <TEntity : Entity> EntityTable<TEntity>.klass get() = this.bindings.first().
  * @author Benjozork
  */
 @Suppress("UNCHECKED_CAST")
-@ExperimentalStdlibApi
 fun Table.foreignKeyTo(other: EntityTable<*>): Column<UUID>?
         = this.columns.singleOrNull { it.referee == other.uuid } as? Column<UUID>

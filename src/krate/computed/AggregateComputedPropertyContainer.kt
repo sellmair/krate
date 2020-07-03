@@ -9,7 +9,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 import java.util.*
 
-@ExperimentalStdlibApi
 class AggregateComputedPropertyContainer<TEntity : Entity, TProperty : Any?> (
     override val obj: TEntity,
     val aggregateExpr: Expression<TProperty>,

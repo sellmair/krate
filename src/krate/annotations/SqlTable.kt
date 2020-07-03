@@ -13,7 +13,6 @@ import kotlin.reflect.full.findAnnotation
  *
  * @author Benjozork
  */
-@ExperimentalStdlibApi
 annotation class SqlTable (
     val table: KClass<out EntityTable<*>>
 )
@@ -21,7 +20,6 @@ annotation class SqlTable (
 /**
  * Computed value that finds the [EntityTable] for a given subclass of [Entity] using the [SqlTable] annotation
  */
-@ExperimentalStdlibApi
 @Suppress("UNCHECKED_CAST")
 val <R : Entity> KClass<R>.table: EntityTable<R>
     get() {
