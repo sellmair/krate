@@ -11,9 +11,11 @@ val hikari_version:    String by project
 val epgx_version:      String by project
 
 plugins {
-    maven
+    `maven-publish`
     `java-library`
+
     kotlin("jvm") version "1.3.72"
+
     id("org.jetbrains.dokka") version "0.10.1"
 }
 
@@ -37,7 +39,7 @@ dependencies {
 
     // Reflectr
 
-    implementation("com.github.blogify-dev", "reflectr", "master-SNAPSHOT")
+    api("dev.31416", "reflectr", "0.1.0")
 
     // Jackson
 
@@ -49,9 +51,9 @@ dependencies {
     // Database stuff
 
     implementation("org.postgresql", "postgresql", pg_driver_version)
-    implementation("org.jetbrains.exposed", "exposed-core", exposed_version)
-    implementation("org.jetbrains.exposed", "exposed-jdbc", exposed_version)
     implementation("com.zaxxer", "HikariCP", hikari_version)
+    api("org.jetbrains.exposed", "exposed-core", exposed_version)
+    api("org.jetbrains.exposed", "exposed-jdbc", exposed_version)
     api("com.github.Benjozork", "exposed-postgres-extensions", epgx_version)
 
     // Kolor
@@ -60,8 +62,8 @@ dependencies {
 
     // Result
 
-    implementation("com.github.kittinunf.result", "result", result_version)
-    implementation("com.github.kittinunf.result", "result-coroutines", result_version)
+    api("com.github.kittinunf.result", "result", result_version)
+    api("com.github.kittinunf.result", "result-coroutines", result_version)
 
     // Logback
 
@@ -75,6 +77,14 @@ dependencies {
 
 artifacts {
     archives(tasks.kotlinSourcesJar)
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["kotlin"])
+        }
+    }
 }
 
 kotlin.sourceSets["main"].kotlin.srcDirs("src")
