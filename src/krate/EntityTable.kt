@@ -201,7 +201,7 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
      * @param binding         the [SqlBinding] we are working with
      */
     @Suppress("UNCHECKED_CAST")
-    private fun <TEntity : Entity, TProperty : Any?> applyBindingToInsertOrUpdate (
+    protected fun <TEntity : Entity, TProperty : Any?> applyBindingToInsertOrUpdate (
         entity: TEntity,
         insertStatement: UpdateBuilder<Number>,
         binding: SqlBinding<TEntity, TProperty, *>
