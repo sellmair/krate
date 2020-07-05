@@ -1,7 +1,7 @@
 package krate.extensions
 
 import reflectr.entity.Entity
-import krate.EntityTable
+import krate.models.EntityTable
 
 import reflectr.extensions.klass
 

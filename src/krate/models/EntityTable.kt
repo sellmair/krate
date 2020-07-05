@@ -1,4 +1,4 @@
-package krate
+package krate.models
 
 import krate.util.*
 import reflectr.entity.Entity
@@ -10,7 +10,6 @@ import reflectr.getPropValueOnInstance
 import krate.handling.query
 import krate.handling.unwrappedQuery
 import krate.binding.SqlBinding
-import krate.extensions.klass
 import krate.optimizer.QueryOptimizer
 
 import org.jetbrains.exposed.sql.*
@@ -20,6 +19,7 @@ import epgx.models.PgTable
 
 import com.github.kittinunf.result.coroutines.map
 import com.github.kittinunf.result.coroutines.mapError
+import krate.extensions.klass
 
 import java.util.*
 
@@ -120,12 +120,12 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
      * @param sortOrder       the sort order [SortOrder] (`order by desc / asc`)
      */
     suspend fun obtainListing (
-        queryContext: QueryContext,
-        selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
-        quantity: Int,
-        page: Int,
-        orderBy: Column<*>,
-        sortOrder: SortOrder = SortOrder.ASC
+            queryContext: QueryContext,
+            selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
+            quantity: Int,
+            page: Int,
+            orderBy: Column<*>,
+            sortOrder: SortOrder = SortOrder.ASC
     ): Sr<Pair<List<TEntity>, Boolean>> = query {
         QueryOptimizer.optimize(this.klass, selectCondition)
             .orderBy(orderBy, sortOrder)
@@ -158,9 +158,9 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
      *                        instances of [TEntity] might be present in a single row
      */
     open suspend fun convert (
-        queryContext: QueryContext,
-        source: ResultRow,
-        aliasToUse: Alias<EntityTable<TEntity>>? = null
+            queryContext: QueryContext,
+            source: ResultRow,
+            aliasToUse: Alias<EntityTable<TEntity>>? = null
     ): Sr<TEntity> {
         fun <T> get(column: Column<T>) = if (aliasToUse != null) source[aliasToUse[column]] else source[column]
 

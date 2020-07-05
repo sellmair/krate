@@ -1,11 +1,10 @@
 package krate.extensions
 
 import reflectr.entity.Entity
-import krate.DatabaseContext
-import krate.QueryContext
+import krate.models.DatabaseContext
+import krate.models.QueryContext
 import krate.annotations.table
-import krate.persistence.models.Repository
-import krate.persistence.postgres.PostgresRepository
+import krate.models.Repository
 
 import kotlin.reflect.KClass
 
@@ -15,7 +14,7 @@ import kotlin.reflect.KClass
 @Suppress("UNCHECKED_CAST")
 inline fun <reified TEntity : Entity> DatabaseContext.repository(): Repository<TEntity> =
     this.repoCache.findOr(TEntity::class) {
-        PostgresRepository(TEntity::class.table) as Repository<Entity>
+        Repository(TEntity::class.table) as Repository<Entity>
     }.get() as Repository<TEntity>
 
 /**
@@ -24,7 +23,7 @@ inline fun <reified TEntity : Entity> DatabaseContext.repository(): Repository<T
 @Suppress("UNCHECKED_CAST")
 fun <TEntity : Entity> DatabaseContext.repository(klass: KClass<out TEntity>): Repository<TEntity> =
     this.repoCache.findOr(klass) {
-        PostgresRepository(klass.table) as Repository<Entity>
+        Repository(klass.table) as Repository<Entity>
     }.get() as Repository<TEntity>
 
 /**

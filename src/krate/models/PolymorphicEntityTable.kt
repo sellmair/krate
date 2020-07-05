@@ -1,4 +1,4 @@
-package krate
+package krate.models
 
 import reflectr.entity.Entity
 

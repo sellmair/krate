@@ -1,8 +1,8 @@
-package krate
+package krate.models
 
+import krate.models.Repository
 import krate.util.MapCache
 import reflectr.entity.Entity
-import krate.persistence.models.Repository
 
 import kotlin.reflect.KClass
 

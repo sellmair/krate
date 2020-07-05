@@ -3,7 +3,7 @@
 package krate.optimizer
 
 import reflectr.entity.Entity
-import krate.EntityTable
+import krate.models.EntityTable
 import krate.annotations.SqlTable
 
 import org.junit.jupiter.api.Test

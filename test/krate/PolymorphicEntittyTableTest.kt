@@ -3,6 +3,8 @@ package krate
 import reflectr.entity.Entity
 
 import krate.annotations.SqlTable
+import krate.models.EntityTable
+import krate.models.PolymorphicEntityTable
 
 import org.jetbrains.exposed.sql.UUIDColumnType
 
