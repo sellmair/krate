@@ -1,17 +1,18 @@
 package krate
 
 import krate.util.*
+import krate.handling.query
+import krate.handling.unwrappedQuery
+import krate.binding.SqlBinding
+import krate.optimizer.QueryOptimizer
+import krate.annotations.table
+
 import reflectr.entity.Entity
 import reflectr.entity.instantiation.MissingArgumentsException
 import reflectr.SlicedProperty
 import reflectr.extensions.handle
 import reflectr.extensions.okHandle
 import reflectr.getPropValueOnInstance
-import krate.handling.query
-import krate.handling.unwrappedQuery
-import krate.binding.SqlBinding
-import krate.extensions.klass
-import krate.optimizer.QueryOptimizer
 
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.statements.UpdateBuilder
@@ -21,9 +22,13 @@ import epgx.models.PgTable
 import com.github.kittinunf.result.coroutines.map
 import com.github.kittinunf.result.coroutines.mapError
 
-import java.util.*
-
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
+import kotlin.reflect.full.allSuperclasses
+import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.full.superclasses
+
+import java.util.*
 
 /**
  * Generic table for storing [entities][Entity] inside a postgres table.
@@ -42,7 +47,20 @@ import kotlin.reflect.KProperty1
  *
  * @author Benjozork, hamza1311
  */
-abstract class EntityTable<TEntity : Entity> : PgTable() {
+abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, name: String = "") : PgTable(name) {
+
+    @Suppress("UNCHECKED_CAST")
+    private fun isPolymorphicVariantTable() =
+        this.klass.superclasses
+            .firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }?.let { true }
+            ?: false
+
+    @Suppress("UNCHECKED_CAST")
+    private val baseTableSealedClass get() =
+        if (isPolymorphicVariantTable())
+            this.klass.allSuperclasses.firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }
+                ?.let { it as KClass<out Entity> }
+        else null
 
     /**
      * A list of all [bindings][SqlBinding] present for this table
@@ -103,7 +121,7 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
     /**
      * Returns an arbitrary list of [limit] items from the table
      */
-    suspend fun obtainAll(queryContext: QueryContext, limit: Int): SrList<TEntity> =
+    open suspend fun obtainAll(queryContext: QueryContext, limit: Int): SrList<TEntity> =
         Wrap {
             query { this.selectAll().limit(limit).toSet() }.get()
                 .map { this.convert(queryContext, it).get() }
@@ -119,7 +137,7 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
      * @param orderBy         which column to specify in the `order by` clause
      * @param sortOrder       the sort order [SortOrder] (`order by desc / asc`)
      */
-    suspend fun obtainListing (
+    open suspend fun obtainListing (
         queryContext: QueryContext,
         selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
         quantity: Int,
@@ -143,7 +161,7 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
      * @param queryContext [QueryContext] for caching
      * @param id             the [UUID] of the entity
      */
-    suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> =
+    open suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> =
         Wrap {
             query { this.select { uuid eq id }.single() }.get()
                 .let { this.convert(queryContext, it).get() }
@@ -164,7 +182,8 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
     ): Sr<TEntity> {
         fun <T> get(column: Column<T>) = if (aliasToUse != null) source[aliasToUse[column]] else source[column]
 
-        val bindingsData = bindings.map {
+        // If we are a polymorphic variant table, we need to use both the bindings from the base table and this table
+        val bindingsData = (if (isPolymorphicVariantTable()) baseTableSealedClass!!.table.bindings + bindings else bindings).map {
             when (val binding = it) {
                 is SqlBinding.HasColumn<*> -> {
                     (binding.property.okHandle ?: never) to get(binding.column)
@@ -282,5 +301,10 @@ abstract class EntityTable<TEntity : Entity> : PgTable() {
     val uuid = uuid("uuid")
 
     override val primaryKey = PrimaryKey(uuid)
+
+    override val tableName get() =
+        if (isPolymorphicVariantTable())
+            (baseTableSealedClass!!.simpleName?.replace(Regex("(\\w)([A-Z])"), "$1_$2")?.toLowerCase() ?: "?") + "_variant_" + this.klass.simpleName
+        else super.tableName
 
 }

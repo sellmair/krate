@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions.*
 
 import com.andreapivetta.kolor.lightRed
 
-object TestEntityTable : EntityTable<TestEntity>() {
+object TestEntityTable : EntityTable<TestEntity>(TestEntity::class) {
     val one = text("one")
 
     init {

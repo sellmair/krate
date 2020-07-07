@@ -8,9 +8,7 @@ import krate.annotations.table
 import krate.extensions.parentKey
 import krate.util.Sr
 
-import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.batchInsert
-import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.*
 
 import java.util.*
 
@@ -47,24 +45,44 @@ import com.github.kittinunf.result.coroutines.map
  * every operation except [delete] requires joining of the base table and a variant table. Performance degradation is to be expected,
  * and query optimization should be of a higher concern.
  *
- * @param kklass the sealed parent class, required for initialization of variant tables
+ * @param klass the sealed parent class, required for initialization of variant tables
  *
  * @author Benjozork
  */
-abstract class PolymorphicEntityTable<TEntity : Entity>(val kklass: KClass<out TEntity>) : EntityTable<TEntity>() {
+abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntity>, name: String = "") : EntityTable<TEntity>(klass, name) {
 
-    val variantId = uuid ("variant_id")
-
-    val variantTables = this.kklass.sealedSubclasses.associateWith { variant -> variant.table }
+    val variantTables = this.klass.sealedSubclasses.associateWith { variant -> variant.table }
 
     init {
-        require(this.kklass.isSealed) { "polymorphic entity tables can only be used on sealed classes" }
+        require(this.klass.isSealed) { "polymorphic entity tables can only be used on sealed classes" }
 
-        variantTables.forEach { (_, table) -> // Create vid parent key column on each variant table
-            with(table) {
-                parentKey ("variant_id", this@PolymorphicEntityTable)
+        variantTables.forEach { (_, table) -> // Create parent key column on each variant table's uuid column
+            table.uuid.foreignKey = ForeignKeyConstraint(this@PolymorphicEntityTable.uuid, table.uuid, ReferenceOption.RESTRICT, ReferenceOption.CASCADE, null)
+        }
+    }
+
+    override suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> = query {
+        val baseRow = select {
+            uuid eq id
+        }.single()
+
+        var goodVariantTable: EntityTable<out TEntity>? = null
+        var goodVariantRow: ResultRow? = null
+        for ((_, vt) in variantTables) {
+            vt.select { vt.uuid eq id }.singleOrNull()?.let { row ->
+                goodVariantTable = vt
+                goodVariantRow = row
             }
         }
+
+        if (goodVariantTable == null || goodVariantRow == null)
+            error("not variant table row was found with uuid $id")
+
+        fun ResultRow.exprMap() = fieldIndex.keys.associateWith { expr -> this[expr] }
+
+        val finalRow = ResultRow.createAndFillValues(baseRow.exprMap() + goodVariantRow!!.exprMap())
+
+        goodVariantTable!!.convert(queryContext, finalRow).get()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -72,13 +90,9 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(val kklass: KClass<out T
         val klass = entity::class as KClass<TEntity>
         val entityVariantTable = klass.table
 
-        val vid = UUID.randomUUID()!!
-
         // Insert into the base table
 
         this.insert {
-            it[variantId] = vid
-
             for (binding in bindings) {
                 if (binding !is SqlBinding.ReferenceToMany<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
@@ -97,7 +111,7 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(val kklass: KClass<out T
         // Run insert algorithm for the variant table
 
         entityVariantTable.insert {
-            it[entityVariantTable.columns.first { c -> c.name == "variant_id" } as Column<UUID>] = vid
+            it[entityVariantTable.uuid] = entity.uuid
 
             for (binding in entityVariantTable.bindings) {
                 if (binding !is SqlBinding.ReferenceToMany<*, *>)
