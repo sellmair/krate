@@ -5,7 +5,6 @@ import reflectr.entity.Entity
 import krate.handling.query
 import krate.binding.SqlBinding
 import krate.annotations.table
-import krate.extensions.parentKey
 import krate.util.Sr
 
 import org.jetbrains.exposed.sql.*
@@ -24,11 +23,9 @@ import com.github.kittinunf.result.coroutines.map
  * variant-specific data. Both base and variant table need to be manually created, the base table inheriting from this very
  * class.
  *
- * This is achieved by creating a [UUID] called a "variant ID" or `vid` for short. This `vid` is stored in a column
- * of both the base and variant table, with a [parentKey] FK from the variant table column to the base table column.
+ * This is achieved by storing the [UUID] of an entity in both the base table and a variant table.
  *
- * Whenever operations on an entity are ran on an instance of this, the `vid` associated with the entity's UUID in the
- * base table is used to perform reads or updates on the variant tables.
+ * Read operations imply a `select` on every variant table until the one containing the UUID is found.
  *
  * The base table must include [bindings][SqlBinding] to common properties of the base sealed type. Variant tables,
  * on the other hand, must only include bindings to properties of the sealed variant they are associated with. During
@@ -41,8 +38,8 @@ import com.github.kittinunf.result.coroutines.map
  * return or deal with entities of the same parent type but of a different variant type. Operations on the base table
  * however, return or deal with entities of all variant types.
  *
- * **Note** : It is important to consider that usage of this class implies a significantly higher quantity of SQL `join` operations, as
- * every operation except [delete] requires joining of the base table and a variant table. Performance degradation is to be expected,
+ * **Note** : It is important to consider that usage of this class implies a significantly higher quantity of SQL `select` operations,
+ * as entity constructions requires both the base and variant data. Performance degradation is to be expected,
  * and query optimization should be of a higher concern.
  *
  * @param klass the sealed parent class, required for initialization of variant tables
@@ -51,14 +48,39 @@ import com.github.kittinunf.result.coroutines.map
  */
 abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntity>, name: String = "") : EntityTable<TEntity>(klass, name) {
 
-    val variantTables = this.klass.sealedSubclasses.associateWith { variant -> variant.table }
+    val variantTables get() = this.klass.sealedSubclasses.associateWith { variant -> variant.table }
 
     init {
         require(this.klass.isSealed) { "polymorphic entity tables can only be used on sealed classes" }
+    }
 
-        variantTables.forEach { (_, table) -> // Create parent key column on each variant table's uuid column
-            table.uuid.foreignKey = ForeignKeyConstraint(this@PolymorphicEntityTable.uuid, table.uuid, ReferenceOption.RESTRICT, ReferenceOption.CASCADE, null)
+    override val primaryKey: PrimaryKey // Hack to avoid initializing VT instances at the same time as the base table,
+                                          // preventing downstream bindings from referring to this while it is uninitialized
+        get() {
+            variantTables.forEach { (_, table) -> // Create parent key column on each variant table's uuid column
+                table.uuid.foreignKey = ForeignKeyConstraint(this@PolymorphicEntityTable.uuid, table.uuid, ReferenceOption.RESTRICT, ReferenceOption.CASCADE, null)
+            }
+
+            return super.primaryKey
         }
+
+    override suspend fun obtainListing ( // TODO this is very unoptimized; fix later
+        queryContext: QueryContext,
+        selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
+        quantity: Int,
+        page: Int,
+        orderBy: Column<*>,
+        sortOrder: SortOrder
+    ): Sr<Pair<List<TEntity>, Boolean>> = query {
+        val baseRowSet = variantTables.values.fold<EntityTable<*>, ColumnSet>(this) { join, table -> join.leftJoin(table) }
+            .selectAll()
+            .orderBy(orderBy, sortOrder)
+            //               v-- We add one to check if we reached the end
+            .limit(quantity + 1, (page * quantity).toLong())
+            .toList().also { println(it.size) }
+            .map { row -> variantTables.values.first { vt -> row.getOrNull(vt.uuid) != null } to row } // Make a map of rows indexed by the VT tehy worked with
+
+        baseRowSet.map { it.first.convert(queryContext, it.second).get() } to false
     }
 
     override suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> = query {

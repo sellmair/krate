@@ -114,6 +114,10 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         conversionFunction: (ResultRow) -> TProperty,
         insertionFunction: (TEntity, TProperty, UpdateBuilder<Number>) -> Unit
     ): SqlBinding.ReferenceToMany<TEntity, TProperty> {
+        require (
+            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.ReferenceToMany<*, *> && it.table == table } ?: true
+        ) { "cannot create a ReferenceToMany binding when base table already has a ReferenceToMany binding to the same table" }
+
         return SqlBinding.ReferenceToMany(this@EntityTable, property, table, conversionFunction, insertionFunction)
             .also { this.bindings += it }
     }
@@ -130,7 +134,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     /**
      * Queries the table using a listing specification
      *
-     * @param queryContext  [QueryContext] for caching
+     * @param queryContext    [QueryContext] for caching
      * @param selectCondition the `where` condition to apply in the query
      * @param quantity        the quantity of items to fetch
      * @param page            the page number

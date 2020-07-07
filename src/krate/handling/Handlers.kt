@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 import java.lang.Exception
+import java.lang.IllegalStateException
 
 /**
  * This function executes a query asynchronously and returns its result.
@@ -36,4 +37,4 @@ suspend fun <T : Any> query(block: suspend () -> T): SuspendableResult<T, Except
  */
 @DatabaseDsl
 suspend fun <T : Any> unwrappedQuery(block: suspend () -> T): T =
-    query(block).getOr { error("unwrapped query resulted in a failure") }
+    query(block).getOr { throw IllegalStateException("unwrapped query resulted in a failure", it) }
