@@ -5,14 +5,16 @@ import krate.annotations.SqlTable
 import krate.util.MapCache
 
 import reflectr.entity.Entity
+import reflectr.extensions.okHandle
 
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.ForeignKeyConstraint
 import org.jetbrains.exposed.sql.ReferenceOption
 
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Assertions.*
 
 import kotlin.reflect.KClass
@@ -22,6 +24,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 import java.util.*
 
+@DisplayName("PolymorphicEntityTable basic CRUD operations test")
 class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A, TestTable.B) {
 
     @SqlTable(TestTable::class)
@@ -89,7 +92,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
         override val objectMapper = jacksonObjectMapper()
     }
 
-    @Test fun `should be able to insert instance variant into base table`() {
+    @Test fun `should be able to insert and select instance of variant in base table`() {
         val entity = TestEntity.A("fries", "James", 19)
 
         assertDoesNotThrow {
@@ -107,7 +110,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
         }
     }
 
-    @Disabled @Test fun `should be able to insert instance variant into variant table`() {
+    @Test fun `should be able to insert and select instance of variant in variant table`() {
         val entity = TestEntity.A("fries", "James", 19)
 
         assertDoesNotThrow {
@@ -125,13 +128,76 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
         }
     }
 
-    @Test fun `should be able to insert variant into base table and then delete it from base table`() {
+    @Test fun `should be able to delete instance of variant in base table`() {
         assertDoesNotThrow {
             blockingTransaction {
                 val entity = TestEntity.A("fries", "James", 19)
 
                 TestTable.insert(entity).get()
                 TestTable.delete(entity)
+
+                val rowsInBaseTable = TestTable.select { TestTable.uuid eq entity.uuid }.toList()
+                val rowsInVariantTable = TestTable.A.select { TestTable.A.uuid eq entity.uuid }.toList()
+
+                assertEquals(0, rowsInBaseTable.size)
+                assertEquals(0, rowsInVariantTable.size)
+            }
+        }
+    }
+
+    @Test fun `should be able to delete instance of variant in variant table`() {
+        assertDoesNotThrow {
+            blockingTransaction {
+                val entity = TestEntity.A("fries", "James", 19)
+
+                TestTable.A.insert(entity).get()
+                TestTable.A.delete(entity)
+
+                val rowsInBaseTable = TestTable.select { TestTable.uuid eq entity.uuid }.toList()
+                val rowsInVariantTable = TestTable.A.select { TestTable.A.uuid eq entity.uuid }.toList()
+
+                assertEquals(0, rowsInBaseTable.size)
+                assertEquals(0, rowsInVariantTable.size)
+            }
+        }
+    }
+
+    @Test fun `should be able to update instance of variant in base table`() {
+        assertDoesNotThrow {
+            blockingTransaction {
+                val entity = TestEntity.A("fries", "James", 19)
+
+                TestTable.insert(entity).get()
+
+                with (queryContext()) {
+                    val updated = entity.update(mapOf(TestEntity.A::extra.okHandle!! to "burger", TestEntity::name.okHandle!! to "Carl")).get()
+                    TestTable.update(updated)
+                }
+
+                val updatedEntity = TestTable.obtain(queryContext(), entity.uuid).get() as TestEntity.A
+
+                assertEquals("burger", updatedEntity.extra)
+                assertEquals("Carl", updatedEntity.name)
+            }
+        }
+    }
+
+    @Test fun `should be able to update instance of variant in variant table`() {
+        assertDoesNotThrow {
+            blockingTransaction {
+                val entity = TestEntity.A("fries", "James", 19)
+
+                TestTable.A.insert(entity).get()
+
+                with (queryContext()) {
+                    val updated = entity.update(mapOf(TestEntity.A::extra.okHandle!! to "burger", TestEntity::name.okHandle!! to "Carl")).get()
+                    TestTable.A.update(updated)
+                }
+
+                val updatedEntity = TestTable.A.obtain(queryContext(), entity.uuid).get()
+
+                assertEquals("burger", updatedEntity.extra)
+                assertEquals("Carl", updatedEntity.name)
             }
         }
     }

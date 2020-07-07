@@ -130,4 +130,44 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
         }
     }.map { entity }
 
+    @Suppress("UNCHECKED_CAST")
+    override suspend fun update(entity: TEntity): Sr<TEntity> = query {
+        val klass = entity::class as KClass<TEntity>
+        val entityVariantTable = klass.table
+
+        // Update in the base table
+
+        this.update({ uuid eq entity.uuid }) {
+            for (binding in bindings) {
+                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                    applyBindingToInsertOrUpdate(entity, it, binding)
+            }
+        }
+
+        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+            val newInstances = binding.property.get(entity)
+
+            binding.otherTable.deleteWhere { binding.otherTableFkToPkCol eq entity.uuid }
+
+            binding.otherTable.batchInsert(newInstances) { item -> binding.insertionFunction(entity, item, this) }
+        }
+
+        // Run update algorithm for the variant table
+
+        entityVariantTable.update({ entityVariantTable.uuid eq entity.uuid }) {
+            for (binding in entityVariantTable.bindings) {
+                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                    applyBindingToInsertOrUpdate(entity, it, binding)
+            }
+        }
+
+        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+            val newInstances = binding.property.get(entity)
+
+            binding.otherTable.deleteWhere { binding.otherTableFkToPkCol eq entity.uuid }
+
+            binding.otherTable.batchInsert(newInstances) { item -> binding.insertionFunction(entity, item, this) }
+        }
+    }.map { entity }
+
 }

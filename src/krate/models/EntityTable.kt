@@ -56,10 +56,10 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
             ?: false
 
     @Suppress("UNCHECKED_CAST")
-    private val baseTableSealedClass get() =
+    private val baseTableSealedClass: KClass<Entity>? get() =
         if (isPolymorphicVariantTable())
             this.klass.allSuperclasses.firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }
-                ?.let { it as KClass<out Entity> }
+                    ?.let { it as KClass<Entity> }
         else null
 
     /**
@@ -159,13 +159,14 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      * Returns a specific entity with a certain UUID from the table
      *
      * @param queryContext [QueryContext] for caching
-     * @param id             the [UUID] of the entity
+     * @param id           the [UUID] of the entity
      */
     open suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> =
-        Wrap {
-            query { this.select { uuid eq id }.single() }.get()
-                .let { this.convert(queryContext, it).get() }
-        }
+            if (isPolymorphicVariantTable())
+                baseTableSealedClass?.table?.obtain(queryContext, id) as? Sr<TEntity> ?: error("cannot find base table")
+            else query {
+                this.select { uuid eq id }.single()
+            }.map { this.convert(queryContext, it).get() }
 
     /**
      * Performs the conversion between a single [ResultRow] and an instance of [TEntity]. Should not be used directly.
@@ -248,6 +249,9 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      * @return the entity itself if the insert was successful
      */
     open suspend fun insert(entity: TEntity): Sr<TEntity> = query {
+        if (isPolymorphicVariantTable())
+            return@query this.baseTableSealedClass?.table?.insert(entity) ?: error("cannot access base table")
+
         this.insert {
             for (binding in bindings) {
                 if (binding !is SqlBinding.ReferenceToMany<*, *>)
@@ -271,6 +275,9 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      * @return whether or not the update was successful
      */
     open suspend fun update(entity: TEntity): Sr<TEntity> = query {
+        if (isPolymorphicVariantTable())
+            return@query this.baseTableSealedClass?.table?.update(entity) ?: error("cannot access base table")
+
         this.update({ uuid eq entity.uuid }) {
             for (binding in bindings) {
                 if (binding !is SqlBinding.ReferenceToMany<*, *>)
@@ -296,6 +303,9 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         unwrappedQuery {
             this.deleteWhere { uuid eq entity.uuid }
         }
+
+        if (isPolymorphicVariantTable())
+            baseTableSealedClass?.table?.delete(entity)
     }.assertGet().let { true }
 
     val uuid = uuid("uuid")
