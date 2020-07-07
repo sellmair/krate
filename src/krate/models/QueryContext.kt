@@ -1,4 +1,4 @@
-package krate
+package krate.models
 
 import krate.util.Sr
 import krate.util.SrList
@@ -7,7 +7,6 @@ import krate.extensions.repository
 import reflectr.entity.Entity
 import reflectr.models.Mapped
 import reflectr.models.PropMap
-import krate.persistence.models.Repository
 import reflectr.entity.update
 import reflectr.entity.instantiation.construct
 
@@ -42,17 +41,17 @@ interface QueryContext {
 
     val objectMapper: ObjectMapper
 
-    /** @see [krate.persistence.models.Repository.getAll] */
+    /** @see [Repository.getAll] */
     suspend fun <TEntity : Entity> Repository<TEntity>.obtainAll(limit: Int): SrList<TEntity> =
         this.getAll(this@QueryContext, limit)
 
-    /** @see [krate.persistence.models.Repository.get] */
+    /** @see [Repository.get] */
     suspend fun <TEntity : Entity> Repository<TEntity>.obtain(id: UUID): Sr<TEntity> =
         this@QueryContext.entityCache.findOrAsync(id) {
             this.get(this@QueryContext, id).get()
         }
 
-    /** @see [krate.persistence.models.Repository.get] */
+    /** @see [Repository.get] */
     suspend fun <TEntity : Entity> Repository<TEntity>.obtainListing (
         selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
         quantity: Int,
@@ -62,11 +61,11 @@ interface QueryContext {
     ): Sr<Pair<List<TEntity>, Boolean>> =
         this.queryListing(this@QueryContext, selectCondition, quantity, page, orderBy, sortOrder)
 
-    /** @see [krate.persistence.models.Repository.update] */
+    /** @see [Repository.update] */
     suspend fun <TEntity : Entity> Repository<TEntity>.update(res: TEntity, rawData: MappedData): Sr<TEntity> =
         this.update(this@QueryContext, res, rawData)
 
-    /** @see [krate.persistence.models.Repository.updateWithProperties] */
+    /** @see [Repository.updateWithProperties] */
     suspend fun <TEntity : Entity> Repository<TEntity>.updateWithProperties (
         entity: TEntity,
         data: Map<out KProperty1<TEntity, Any>, Any>

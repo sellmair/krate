@@ -2,9 +2,10 @@
 
 package krate.optimizer
 
-import reflectr.entity.Entity
-import krate.EntityTable
+import krate.models.EntityTable
 import krate.annotations.SqlTable
+
+import reflectr.entity.Entity
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*

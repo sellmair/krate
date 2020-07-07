@@ -1,26 +1,26 @@
-package krate.persistence.models
+@file:Suppress("unused")
 
+package krate.models
+
+import krate.handling.query
 import krate.util.Sr
 import krate.util.SrList
-import reflectr.util.MappedData
-import reflectr.models.PropMap
-import reflectr.extensions.okHandle
-import krate.QueryContext
-import reflectr.entity.Entity
+import krate.util.Wrap
 
-import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.Op
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder
+import reflectr.entity.Entity
+import reflectr.extensions.okHandle
+import reflectr.util.MappedData
+
+import org.jetbrains.exposed.sql.*
 
 import java.util.*
 
 import kotlin.reflect.KProperty1
 
 /**
- * Service interface for fetching, creating, updating and deleting [entities][Entity].
+ * Class for fetching, creating, updating and deleting [entities][Entity].
  */
-interface Repository<R : Entity> {
+open class Repository<R : Entity>(val table: EntityTable<R>) {
 
     /**
      * Obtains all instances of [R] in the database
@@ -30,7 +30,8 @@ interface Repository<R : Entity> {
      *
      * @author Benjozork, hamza1311
      */
-    suspend fun getAll(request: QueryContext, limit: Int = 256): SrList<R>
+     suspend fun getAll(request: QueryContext, limit: Int): SrList<R>
+            = this.table.obtainAll(request, limit)
 
     /**
      * Obtains an instance of [R] with a specific [id][UUID] ]in the database
@@ -44,12 +45,15 @@ interface Repository<R : Entity> {
      *
      * @author Benjozork, hamza1311
      */
-    suspend fun queryListing(request: QueryContext,
-                             selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
-                             quantity: Int,
-                             page: Int,
-                             orderBy: Column<*>,
-                             sortOrder: SortOrder = SortOrder.ASC): Sr<Pair<List<R>, Boolean>>
+     suspend fun queryListing (
+        request: QueryContext,
+        selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
+        quantity: Int,
+        page: Int,
+        orderBy: Column<*>,
+        sortOrder: SortOrder
+    ): Sr<Pair<List<R>, Boolean>>
+            = this.table.obtainListing(request, selectCondition, quantity, page, orderBy, sortOrder)
 
     /**
      * Obtains an instance of [R] with a specific [id][UUID] ]in the database
@@ -59,7 +63,8 @@ interface Repository<R : Entity> {
      *
      * @author Benjozork, hamza1311
      */
-    suspend fun get(queryContext: QueryContext, id: UUID): Sr<R>
+     suspend fun get(queryContext: QueryContext, id: UUID): Sr<R>
+            = queryContext.entityCache.findOrAsync(id) { table.obtain(queryContext, id).get() }
 
     /**
      * Obtains an instance of [R] matching a specific SQL predicate
@@ -69,7 +74,13 @@ interface Repository<R : Entity> {
      *
      * @author Benjozork, hamza1311
      */
-    suspend fun getOneMatching(queryContext: QueryContext, selectCondition: SqlExpressionBuilder.() -> Op<Boolean>): Sr<R>
+     suspend fun getOneMatching (
+        queryContext: QueryContext,
+        selectCondition: SqlExpressionBuilder.() -> Op<Boolean>
+    ): Sr<R> = query {
+        this.table.select(selectCondition).limit(1).single()
+            .let { this.table.convert(queryContext, it).get() }
+    }
 
     /**
      * Adds an instance of [R] to the database
@@ -78,18 +89,25 @@ interface Repository<R : Entity> {
      *
      * @author Benjozork, hamza1311
      */
-    suspend fun add(res: R): Sr<R>
+     suspend fun add(res: R): Sr<R> = this.table.insert(res)
 
     /**
      * Updates an instance of [R] in the database
      *
      * @param request the [QueryContext] to use for this operation, for caching and querying purposes
      * @param res     the entity to update
-     * @param rawData a map of [property handles][PropMap.PropertyHandle.Ok] to replacement values. Can omit values to not update them.
+     * @param rawData a map of [property handles][reflectr.models.PropMap.PropertyHandle.Ok] to replacement values. Can omit values to not update them.
      *
      * @author Benjozork, hamza1311
      */
-    suspend fun update(request: QueryContext, res: R, rawData: MappedData): Sr<R>
+     suspend fun update(request: QueryContext, res: R, rawData: MappedData): Sr<R> =
+        Wrap {
+            val new = with(request) {
+                res.update(rawData)
+            }.get()
+
+            this.table.update(new).get()
+        }
 
     /**
      * Updates an instance of [R] in the database
@@ -111,6 +129,6 @@ interface Repository<R : Entity> {
      *
      * @author Benjozork, hamza1311
      */
-    suspend fun delete(entity: R): Sr<UUID>
+    suspend fun delete(entity: R): Sr<UUID> = this.table.delete(entity).let { Wrap { entity.uuid } }
 
 }

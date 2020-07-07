@@ -1,4 +1,4 @@
-package krate
+package krate.models
 
 import krate.util.*
 import krate.handling.query

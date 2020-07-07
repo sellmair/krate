@@ -1,24 +1,24 @@
 package krate
 
+import krate.models.*
+import krate.annotations.SqlTable
+import krate.util.MapCache
+
+import reflectr.entity.Entity
+
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.ForeignKeyConstraint
 import org.jetbrains.exposed.sql.ReferenceOption
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Assertions.*
-
-import reflectr.entity.Entity
-
-import krate.persistence.models.Repository
-import krate.annotations.SqlTable
-import krate.util.MapCache
-
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 import kotlin.reflect.KClass
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Disabled
+
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 import java.util.*
 

@@ -112,7 +112,7 @@ tasks {
         configuration {
             skipDeprecated = true
 
-            reportUndocumented = false
+            reportUndocumented = true
 
             skipEmptyPackages = true
 

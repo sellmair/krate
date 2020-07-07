@@ -1,6 +1,7 @@
 package krate.extensions
 
-import krate.EntityTable
+import krate.models.EntityTable
+
 import reflectr.entity.Entity
 
 import org.jetbrains.exposed.sql.Column

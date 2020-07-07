@@ -1,8 +1,9 @@
 package krate.binding
 
-import reflectr.entity.Entity
+import krate.models.EntityTable
 import krate.extensions.foreignKeyTo
-import krate.EntityTable
+
+import reflectr.entity.Entity
 
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.statements.UpdateBuilder
