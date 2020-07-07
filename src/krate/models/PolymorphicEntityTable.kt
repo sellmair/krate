@@ -73,6 +73,7 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
                 goodVariantTable = vt
                 goodVariantRow = row
             }
+            if (goodVariantTable != null) break
         }
 
         if (goodVariantTable == null || goodVariantRow == null)
