@@ -109,7 +109,9 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
     }
 
     @Suppress("UNCHECKED_CAST")
-    override suspend fun insert(entity: TEntity): Sr<TEntity> = query {
+    override suspend fun insert(entity: TEntity, forBinding: SqlBinding<*, *, *>?, parentEntity: Entity?): Sr<TEntity> = query {
+        require (forBinding == null || parentEntity != null) { "call to insert() for a binding must specify parent entity" }
+
         val klass = entity::class as KClass<TEntity>
         val entityVariantTable = klass.table
 
@@ -131,6 +133,10 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
             }
         }
 
+        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+            binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding) }
+        }
+
         // Run insert algorithm for the variant table
 
         entityVariantTable.insert {
@@ -149,6 +155,10 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
             bindingTable.batchInsert(instances) { item ->
                 binding.insertionFunction(entity, item, this)
             }
+        }
+
+        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+            binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding) }
         }
     }.map { entity }
 

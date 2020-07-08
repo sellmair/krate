@@ -106,4 +106,21 @@ sealed class SqlBinding<TEntity : Entity, TProperty : Any?, TColumn : Any?> (
 
     }
 
+    /**
+     * Binds [property] to [another table][otherTable] containing its entity values
+     *
+     * note: [otherTable] must contain one and only one FK from one if its columns with UUID type to the PK of [table]
+     */
+    class ReferenceToManyEntities<TEntity : Entity, TProperty : Entity> (
+        table: EntityTable<TEntity>,
+        property: KProperty1<TEntity, Collection<TProperty>>,
+        val otherTable: EntityTable<TProperty>
+    ) : SqlBinding<TEntity, Collection<TProperty>, UUID>(table, property) {
+
+        @Suppress("UNCHECKED_CAST")
+        val otherTableFkToPkCol = otherTable.foreignKeyTo(table)
+            ?: error("cannot make a ReferenceToMany SqlBinding: no foreign key from target table (${otherTable.tableName}) to PK of origin table (${table.tableName})")
+
+    }
+
 }

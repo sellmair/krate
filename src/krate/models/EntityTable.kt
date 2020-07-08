@@ -1,20 +1,21 @@
 package krate.models
 
-import krate.util.*
-import krate.handling.query
-import krate.handling.unwrappedQuery
 import krate.binding.SqlBinding
 import krate.optimizer.QueryOptimizer
+import krate.handling.query
+import krate.handling.unwrappedQuery
 import krate.annotations.table
+import krate.util.*
 
 import reflectr.entity.Entity
 import reflectr.entity.instantiation.MissingArgumentsException
 import reflectr.SlicedProperty
-import reflectr.extensions.handle
-import reflectr.extensions.okHandle
 import reflectr.getPropValueOnInstance
 
+import reflectr.extensions.*
+
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.statements.UpdateBuilder
 
 import epgx.models.PgTable
@@ -123,6 +124,24 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     }
 
     /**
+     * Creates a binding between [table] and a [property]
+     *
+     * @param table     the table in which instances of [property] are stored for `this` table
+     * @param property  the property of [TEntity]`::class` to bind
+     */
+    fun <TProperty : Entity> bind (
+        table: EntityTable<TProperty>,
+        property: KProperty1<TEntity, Collection<TProperty>>
+    ): SqlBinding.ReferenceToManyEntities<TEntity, TProperty> {
+        require (
+            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.ReferenceToMany<*, *> && it.table == table } ?: true
+        ) { "cannot create a ReferenceToMany binding when base table already has a ReferenceToMany binding to the same table" }
+
+        return SqlBinding.ReferenceToManyEntities(this@EntityTable, property, table)
+            .also { this.bindings += it }
+    }
+
+    /**
      * Returns an arbitrary list of [limit] items from the table
      */
     open suspend fun obtainAll(queryContext: QueryContext, limit: Int): SrList<TEntity> =
@@ -201,6 +220,14 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
                             .toSet().map { row -> binding.conversionFunction(row) }
                     }
                 }
+                is SqlBinding.ReferenceToManyEntities<*, *> -> {
+                    val entityId = get(this.uuid)
+
+                    (binding.property.okHandle ?: never) to unwrappedQuery {
+                        binding.otherTable.select { binding.otherTableFkToPkCol eq entityId }
+                            .toSet().map { row -> binding.otherTable.convert(queryContext, row).get() }
+                    }
+                }
                 else -> never
             }
 
@@ -250,13 +277,21 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     /**
      * Inserts [entity] into the table
      *
+     * @param forBinding   the binding this call is made for. used internally when a binding needs extra data or context
+     * @param parentEntity the entity to which the binding specified in [forBinding] belongs
+     *
      * @return the entity itself if the insert was successful
      */
-    open suspend fun insert(entity: TEntity): Sr<TEntity> = query {
+    open suspend fun insert(entity: TEntity, forBinding: SqlBinding<*, *, *>? = null, parentEntity: Entity? = null): Sr<TEntity> = query {
         if (isPolymorphicVariantTable())
             return@query this.baseTableSealedClass?.table?.insert(entity) ?: error("cannot access base table")
 
+        require (forBinding == null || parentEntity != null) { "call to insert() for a binding must specify parent entity" }
+
         this.insert {
+            if (forBinding is SqlBinding.ReferenceToManyEntities<*, *>)
+                it[forBinding.otherTableFkToPkCol] = parentEntity!!.uuid
+
             for (binding in bindings) {
                 if (binding !is SqlBinding.ReferenceToMany<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
@@ -271,7 +306,13 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
                 binding.insertionFunction(entity, item, this)
             }
         }
-    }.map { entity }
+    }.map { entity }.also {
+        // Handle entity manyref bindings in another tx because Exposed doesn't support deferred constraints
+
+        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+            binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding, parentEntity = entity).get() }
+        }
+    }
 
     /**
      * Updates [entity] into the table using it's uuid for finding the old version
@@ -296,7 +337,17 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
 
             binding.otherTable.batchInsert(newInstances) { item -> binding.insertionFunction(entity, item, this) }
         }
-    }.map { entity }
+    }.map { entity }.also {
+        // Handle entity manyref bindings in another tx because Exposed doesn't support deferred constraints
+
+        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+            transaction {
+                binding.otherTable.deleteWhere { binding.otherTableFkToPkCol eq entity.uuid }
+            }
+
+            binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding, parentEntity = entity).get() }
+        }
+    }
 
     /**
      * Deletes [entity] from table using it's uuid for finding the item to delete

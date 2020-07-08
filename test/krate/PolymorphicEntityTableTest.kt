@@ -125,18 +125,6 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
         }
     }
 
-    private fun <T> blockingTransaction(block: suspend Transaction.() -> T) = transaction { runBlocking { block() } }
-
-    private fun queryContext() = object : QueryContext {
-        override val databaseContext = object : DatabaseContext {
-            override val repoCache = MapCache<KClass<out Entity>, Repository<Entity>>()
-        }
-
-        override val entityCache = MapCache<UUID, Entity>()
-
-        override val objectMapper = jacksonObjectMapper()
-    }
-
     @Test fun `should be able to insert and select instance of variant in base table`() {
         val entity = TestEntity.A("fries", "James", 19)
 
