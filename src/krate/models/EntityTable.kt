@@ -126,6 +126,8 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     /**
      * Creates a binding between [table] and a [property]
      *
+     * Note: this creates a one-to-many relationship, so a FK in [table] to the receiver table's PK is needed.
+     *
      * @param table     the table in which instances of [property] are stored for `this` table
      * @param property  the property of [TEntity]`::class` to bind
      */
