@@ -5,7 +5,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import krate.models.EntityTable
 import krate.extensions.weaKey
-import krate.annotations.SqlTable
+import krate.binding.SqlTable
 
 import reflectr.entity.Entity
 import reflectr.extensions.okHandle

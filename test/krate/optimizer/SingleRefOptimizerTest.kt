@@ -3,7 +3,7 @@
 package krate.optimizer
 
 import krate.models.EntityTable
-import krate.annotations.SqlTable
+import krate.binding.SqlTable
 
 import reflectr.entity.Entity
 

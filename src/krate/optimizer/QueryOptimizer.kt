@@ -4,7 +4,7 @@ import krate.util.*
 import reflectr.entity.Entity
 import reflectr.extensions.klass
 import reflectr.extensions.safeKlass
-import krate.annotations.table
+import krate.binding.table
 import krate.binding.SqlBinding
 import krate.handling.query
 import krate.models.QueryContext

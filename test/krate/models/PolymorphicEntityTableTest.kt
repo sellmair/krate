@@ -3,7 +3,7 @@ package krate.models
 import krate.models.PolymorphicEntityTableTest.SimpleObjectTable.type
 import krate.models.PolymorphicEntityTableTest.SimpleObjectTable.cte
 import krate.extensions.parentKey
-import krate.annotations.SqlTable
+import krate.binding.SqlTable
 
 import reflectr.entity.Entity
 import reflectr.extensions.okHandle

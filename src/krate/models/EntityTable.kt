@@ -4,7 +4,7 @@ import krate.binding.SqlBinding
 import krate.optimizer.QueryOptimizer
 import krate.handling.query
 import krate.handling.unwrappedQuery
-import krate.annotations.table
+import krate.binding.table
 import krate.util.*
 
 import reflectr.entity.Entity

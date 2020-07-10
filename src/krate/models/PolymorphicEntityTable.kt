@@ -4,7 +4,7 @@ import reflectr.entity.Entity
 
 import krate.handling.query
 import krate.binding.SqlBinding
-import krate.annotations.table
+import krate.binding.table
 import krate.util.Sr
 
 import org.jetbrains.exposed.sql.*

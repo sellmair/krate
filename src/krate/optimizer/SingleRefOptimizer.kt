@@ -1,12 +1,12 @@
 package krate.optimizer
 
 import krate.util.never
-import reflectr.extensions.safeKlass
-import krate.annotations.table
+import krate.binding.table
 import krate.binding.SqlBinding
 import reflectr.entity.Entity
 
 import org.jetbrains.exposed.sql.*
+import reflectr.extensions.safeKlass
 
 import kotlin.reflect.KClass
 

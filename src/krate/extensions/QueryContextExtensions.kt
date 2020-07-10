@@ -3,7 +3,7 @@ package krate.extensions
 import reflectr.entity.Entity
 import krate.models.DatabaseContext
 import krate.models.QueryContext
-import krate.annotations.table
+import krate.binding.table
 import krate.models.Repository
 
 import kotlin.reflect.KClass
