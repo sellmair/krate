@@ -2,7 +2,7 @@ package krate.computed
 
 import reflectr.computed.models.ComputedPropContainer
 import reflectr.entity.Entity
-import krate.annotations.table
+import krate.binding.table
 
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction

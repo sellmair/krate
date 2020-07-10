@@ -1,4 +1,4 @@
-package krate.annotations
+package krate.binding
 
 import krate.models.EntityTable
 

@@ -4,12 +4,16 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.dokka.gradle.DokkaTask
 import java.net.URL
 
-val kolor_version:     String by project
-val result_version:    String by project
-val pg_driver_version: String by project
-val exposed_version:   String by project
-val hikari_version:    String by project
-val epgx_version:      String by project
+val kolor_version:      String by project
+val result_version:     String by project
+val pg_driver_version:  String by project
+val exposed_version:    String by project
+val hikari_version:     String by project
+val epgx_version:       String by project
+val coroutines_version: String by project
+val junit_version:      String by project
+val logback_version:    String by project
+val jackson_version:    String by project
 
 plugins {
     `maven-publish`
@@ -36,7 +40,7 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.5")
+    implementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", coroutines_version)
 
     // Reflectr
 
@@ -44,10 +48,10 @@ dependencies {
 
     // Jackson
 
-    implementation("com.fasterxml.jackson.core", "jackson-core", "2.10.2")
-    implementation("com.fasterxml.jackson.core", "jackson-databind", "2.10.2")
-    implementation("com.fasterxml.jackson.core", "jackson-annotations", "2.10.2")
-    implementation("com.fasterxml.jackson.module", "jackson-module-kotlin", "2.10.2")
+    implementation("com.fasterxml.jackson.core", "jackson-core", jackson_version)
+    implementation("com.fasterxml.jackson.core", "jackson-databind", jackson_version)
+    implementation("com.fasterxml.jackson.core", "jackson-annotations", jackson_version)
+    implementation("com.fasterxml.jackson.module", "jackson-module-kotlin", jackson_version)
 
     // Database stuff
 
@@ -68,13 +72,13 @@ dependencies {
 
     // Logback
 
-    implementation("ch.qos.logback:logback-classic:1.2.3")
+    implementation("ch.qos.logback", "logback-classic", logback_version)
 
     // Testing
 
-    testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.5.2")
-    testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.5.2")
-    testImplementation("org.jetbrains.kotlinx", "kotlinx-coroutines-test", "1.3.7")
+    testImplementation("org.junit.jupiter", "junit-jupiter-api", junit_version)
+    testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", junit_version)
+    testImplementation("org.jetbrains.kotlinx", "kotlinx-coroutines-test", coroutines_version)
 }
 
 artifacts {
@@ -113,12 +117,24 @@ tasks {
         configuration {
             skipDeprecated = true
 
-            reportUndocumented = true
+            reportUndocumented = false
 
             skipEmptyPackages = true
 
+            includes = listOf("docs/krate.md")
+
             externalDocumentationLink {
                 url = URL("https://docs.31416.dev/reflectr/")
+            }
+
+            perPackageOption {
+                prefix   = "krate.annotations"
+                suppress = true
+            }
+
+            perPackageOption {
+                prefix   = "krate.util"
+                suppress = true
             }
 
             sourceLink {

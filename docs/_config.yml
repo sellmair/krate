@@ -1,10 +1,23 @@
 theme: "just-the-docs"
+
+title: Krate
+
 color_scheme: dark
+
 heading_anchors: true
 
+aux_links:
+  "GitHub":
+    - "//github.com/blogify-dev/krate"
+
+footer_content: Licenced under <a href="https://github.com/blogify-dev/krate/tree/master/LICENSE">GPL 3 license.</a>
+
+back_to_top: true
+back_to_top_text: "Back to top"
+
+
 defaults:
-  -
-    scope:
+  - scope:
       path: "index.md"
     values:
       layout: "home"
@@ -13,5 +26,9 @@ defaults:
       path: "**/*.md"
     values:
       layout: "page"
+  - scope:
+      path: "alltypes/index.md"
+    values:
+      nav_exclude: true
 
 source: "krate"
