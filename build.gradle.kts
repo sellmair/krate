@@ -74,6 +74,7 @@ dependencies {
 
     testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.5.2")
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.5.2")
+    testImplementation("org.jetbrains.kotlinx", "kotlinx-coroutines-test", "1.3.7")
 }
 
 artifacts {

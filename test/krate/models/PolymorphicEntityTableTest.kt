@@ -1,11 +1,9 @@
-package krate
+package krate.models
 
-import krate.models.*
-import krate.PolymorphicEntityTableTest.SimpleObjectTable.type
-import krate.PolymorphicEntityTableTest.SimpleObjectTable.cte
+import krate.models.PolymorphicEntityTableTest.SimpleObjectTable.type
+import krate.models.PolymorphicEntityTableTest.SimpleObjectTable.cte
 import krate.extensions.parentKey
 import krate.annotations.SqlTable
-import krate.util.MapCache
 
 import reflectr.entity.Entity
 import reflectr.extensions.okHandle
@@ -18,17 +16,21 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Assertions.*
 
-import kotlin.reflect.KClass
-import kotlinx.coroutines.runBlocking
-
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-
 import epgx.models.PgTable
+import kotlinx.coroutines.test.runBlockingTest
+import krate.DatabaseConnectedTest
 
 import java.util.*
 
 @DisplayName("PolymorphicEntityTable basic CRUD operations test")
-class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A, TestTable.B, ComplexTestTable, SimpleObjectTable, ComplexTestTable.A) {
+class PolymorphicEntityTableTest : DatabaseConnectedTest(
+    TestTable,
+    TestTable.A,
+    TestTable.B,
+    ComplexTestTable,
+    SimpleObjectTable,
+    ComplexTestTable.A
+) {
 
     @SqlTable(TestTable::class)
     sealed class TestEntity(val name: String, val age: Int, uuid: UUID = UUID.randomUUID()) : Entity(uuid) {
@@ -52,7 +54,8 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
             bind(age, TestEntity::age)
         }
 
-        object A : EntityTable<TestEntity.A>(TestEntity.A::class) {
+        object A : EntityTable<TestEntity.A>(
+            TestEntity.A::class) {
             val extra = text ("extra")
 
             init {
@@ -60,7 +63,8 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
             }
         }
 
-        object B : EntityTable<TestEntity.B>(TestEntity.B::class) {
+        object B : EntityTable<TestEntity.B>(
+            TestEntity.B::class) {
             val another = float ("another")
 
             init {
@@ -85,13 +89,16 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
         init {
             bind(uuid, ComplexTestEntity::uuid)
             bind(name, ComplexTestEntity::name)
-            bind(SimpleObjectTable, ComplexTestEntity::others, { row -> SimpleObject(row[type]) }, { cte_, so, ub ->
+            bind(SimpleObjectTable, ComplexTestEntity::others, { row ->
+                SimpleObject(row[type])
+            }, { cte_, so, ub ->
                 ub[type] = so.type
                 ub[cte] = cte_.uuid
             })
         }
 
-        object A : EntityTable<ComplexTestEntity.A>(ComplexTestEntity.A::class) {
+        object A : EntityTable<ComplexTestEntity.A>(
+            ComplexTestEntity.A::class) {
 
             val extra = text ("extra")
 
@@ -165,9 +172,19 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
     inner class References {
 
         @Test fun `should be able to insert with manyref items in base property in base table`() {
-            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
+            val othersObjects = Array(5) {
+                SimpleObject(
+                    it.toString(
+                        16
+                    )
+                )
+            }.toList()
 
-            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
+            val entity = ComplexTestEntity.A(
+                "hi !",
+                "Henry",
+                othersObjects
+            )
 
             assertDoesNotThrow {
                 blockingTransaction {
@@ -183,9 +200,19 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
         }
 
         @Test fun `should be able to insert with manyref items in base property in variant table`() {
-            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
+            val othersObjects = Array(5) {
+                SimpleObject(
+                    it.toString(
+                        16
+                    )
+                )
+            }.toList()
 
-            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
+            val entity = ComplexTestEntity.A(
+                "hi !",
+                "Henry",
+                othersObjects
+            )
 
             assertDoesNotThrow {
                 blockingTransaction {
@@ -201,9 +228,19 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
         }
 
         @Test fun `should be able to delete instance of variant with manyref in base table`() {
-            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
+            val othersObjects = Array(5) {
+                SimpleObject(
+                    it.toString(
+                        16
+                    )
+                )
+            }.toList()
 
-            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
+            val entity = ComplexTestEntity.A(
+                "hi !",
+                "Henry",
+                othersObjects
+            )
 
             assertDoesNotThrow {
                 blockingTransaction {
@@ -217,10 +254,20 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
             }
         }
 
-        @Test fun `should be able to delete instance of variant with manyref in variant table`() {
-            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
+        @Test fun `should be able to delete instance of variant with manyref in variant table`() = runBlockingTest {
+            val othersObjects = Array(5) {
+                SimpleObject(
+                    it.toString(
+                        16
+                    )
+                )
+            }.toList()
 
-            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
+            val entity = ComplexTestEntity.A(
+                "hi !",
+                "Henry",
+                othersObjects
+            )
 
             assertDoesNotThrow {
                 blockingTransaction {
@@ -254,7 +301,9 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
                 blockingTransaction {
                     entities.forEach { entity -> TestTable.insert(entity) }
 
-                    val selectedEntities = TestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0, TestTable.name).get()
+                    val selectedEntities = TestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
+                        TestTable.name
+                    ).get()
 
                     assertEquals (
                         entities.map { it.uuid }.sorted(),
@@ -270,15 +319,32 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
             }
 
             val entities = listOf (
-                ComplexTestEntity.A("something special", "Jane", listOf(SimpleObject("tool"), SimpleObject("desk"))),
-                ComplexTestEntity.A("a boring thing", "Samuel", listOf(SimpleObject("cucumber"), SimpleObject("tomato"), SimpleObject("chair")))
+                ComplexTestEntity.A(
+                    "something special",
+                    "Jane",
+                    listOf(
+                        SimpleObject("tool"),
+                        SimpleObject("desk")
+                    )
+                ),
+                ComplexTestEntity.A(
+                    "a boring thing",
+                    "Samuel",
+                    listOf(
+                        SimpleObject("cucumber"),
+                        SimpleObject("tomato"),
+                        SimpleObject("chair")
+                    )
+                )
             )
 
             assertDoesNotThrow {
                 blockingTransaction {
                     entities.forEach { entity -> ComplexTestTable.insert(entity) }
 
-                    val selectedEntities = ComplexTestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0, ComplexTestTable.name).get()
+                    val selectedEntities = ComplexTestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
+                        ComplexTestTable.name
+                    ).get()
 
                     assertEquals (
                         entities.map { it.uuid }.sorted(),
@@ -293,7 +359,8 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
     @Test fun `should be able to delete instance of variant in base table`() {
         assertDoesNotThrow {
             blockingTransaction {
-                val entity = TestEntity.A("fries", "James", 19)
+                val entity =
+                    TestEntity.A("fries", "James", 19)
 
                 TestTable.insert(entity).get()
                 TestTable.delete(entity)
@@ -310,7 +377,8 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
     @Test fun `should be able to delete instance of variant in variant table`() {
         assertDoesNotThrow {
             blockingTransaction {
-                val entity = TestEntity.A("fries", "James", 19)
+                val entity =
+                    TestEntity.A("fries", "James", 19)
 
                 TestTable.A.insert(entity).get()
                 TestTable.A.delete(entity)
@@ -327,7 +395,8 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
     @Test fun `should be able to update instance of variant in base table`() {
         assertDoesNotThrow {
             blockingTransaction {
-                val entity = TestEntity.A("fries", "James", 19)
+                val entity =
+                    TestEntity.A("fries", "James", 19)
 
                 TestTable.insert(entity).get()
 
@@ -347,7 +416,8 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(TestTable, TestTable.A,
     @Test fun `should be able to update instance of variant in variant table`() {
         assertDoesNotThrow {
             blockingTransaction {
-                val entity = TestEntity.A("fries", "James", 19)
+                val entity =
+                    TestEntity.A("fries", "James", 19)
 
                 TestTable.A.insert(entity).get()
 
