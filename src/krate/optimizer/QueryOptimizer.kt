@@ -1,20 +1,21 @@
 package krate.optimizer
 
-import krate.util.*
-import reflectr.entity.Entity
-import reflectr.extensions.klass
-import reflectr.extensions.safeKlass
+import com.github.kittinunf.result.coroutines.SuspendableResult
+import krate.models.QueryContext
 import krate.binding.table
 import krate.binding.SqlBinding
 import krate.handling.query
-import krate.models.QueryContext
+import krate.util.*
+
+import reflectr.entity.Entity
+import reflectr.extensions.klass
+import reflectr.extensions.safeKlass
+import reflectr.extensions.okHandle
+import reflectr.util.MappedData
 
 import org.jetbrains.exposed.sql.*
 
-import com.github.kittinunf.result.coroutines.SuspendableResult
 import com.github.kittinunf.result.coroutines.mapError
-import reflectr.extensions.okHandle
-import reflectr.util.MappedData
 
 import kotlin.reflect.KClass
 
@@ -51,63 +52,60 @@ object QueryOptimizer {
      * the classes of the different properties of [TEntity], and of running additional queries for [x-to-many references][SqlBinding.OneToManyValues] if needed.
      *
      * @param queryContext the [QueryContext] for caching
-     * @param klass          the class associated with [TEntity], used for reflection purposes
-     * @param rows           a set of [result rows][ResultRow], each to be converted to instances of [TEntity]
+     * @param klass        the class associated with [TEntity], used for reflection purposes
+     * @param rows         a set of [result rows][ResultRow], each to be converted to instances of [TEntity]
      */
-    suspend fun <TEntity : Entity> convertOptimizedRows (
-            queryContext: QueryContext,
-            klass: KClass<TEntity>,
-            rows: List<ResultRow>
-    ): List<TEntity> {
-        return rows.map { row ->
-            val bindingsData: MappedData = klass.table.bindings.map { binding ->
-                binding.property.okHandle!! to Wrap {
-                    when (binding) {
-                        is SqlBinding.OneToOne<*, *>,
-                        is SqlBinding.OneToOneOrNone<*, *> ->
-                            resolveSingleRefInstance(
-                                queryContext,
-                                binding,
-                                row
+    suspend fun <TEntity : Entity> convertOptimizedRows(queryContext: QueryContext, klass: KClass<TEntity>, rows: List<ResultRow>): List<TEntity> =
+        rows.map { row ->
+            val dataFromBindings: MappedData = klass.table.bindings.map { binding ->
+                binding.property.okHandle!! to resolveValueForBinding(queryContext, binding, row)
+                    .mapError { exception ->
+                        if (exception !is NullValue)
+                            IllegalStateException (
+                                "error occurred during optimized row processing for property '${binding.property.name}' " + "- ${exception::class.simpleName}",
+                                exception
                             )
-                                .get()
-                        is SqlBinding.OneToManyValues<*, *> -> {
-                            resolveManyRefItems(
-                                queryContext,
-                                binding,
-                                row[binding.table.uuid]
-                            )
-                                .get()
-                        }
-                        is SqlBinding.HasColumn<*> -> // Get the data directly from the row
-                            row[binding.column] ?: if (binding.property.returnType.isMarkedNullable) {
-                                throw NullValue
-                            } else error("property '${binding.property.name}' is not marked nullable but column contained null value'")
-                        else -> never
+                        else exception
                     }
-                }.mapError { exception ->
-                    if (exception is NullValue)
-                        return@mapError exception
-                    else IllegalStateException("error occurred during optimized row processing for property '${binding.property.name}' " +
-                            "- ${exception::class.simpleName}", exception)
-                }
             }.toMap().mapValues { (_, result) ->
                 when (result) {
-                    is SuspendableResult.Success<*, *> -> result.value
-                    is SuspendableResult.Failure<*, *> ->
-                        if (result.getException() is NullValue)
-                            null
+                    is SuspendableResult.Success -> result.value
+                    is SuspendableResult.Failure -> {
+                        if (result.getException() is NullValue) null
                         else throw result.getException()
+                    }
                 }
             }
 
             with(queryContext) {
-                klass.construct(bindingsData).get() // Finally, construct the class
+                klass.construct(dataFromBindings).get() // Finally, construct the class
             }
         }
+
+    private suspend fun <TEntity : Entity> resolveValueForBinding (
+        queryContext: QueryContext,
+        binding: SqlBinding<TEntity, out Any?, *>,
+        row: ResultRow
+    ): Sr<Any> = when (binding) {
+        is SqlBinding.OneToOne<*, *>,
+        is SqlBinding.OneToOneOrNone<*, *> ->
+            resolveOneToOne(queryContext, binding, row)
+        is SqlBinding.OneToMany<*, *> -> {
+            resolveOneToMany(queryContext, binding, row[binding.table.uuid])
+        }
+        is SqlBinding.OneToManyValues<*, *> -> {
+            resolveOneToManyValues(queryContext, binding, row[binding.table.uuid])
+        }
+        is SqlBinding.HasColumn<*> -> // Get the data directly from the row
+            Wrap {
+                row[binding.column] ?: if (binding.property.returnType.isMarkedNullable) {
+                    throw NullValue
+                } else error("property '${binding.property.name}' is not marked nullable but column contained null value'")
+            }
+        else -> never
     }
 
-    private suspend fun resolveSingleRefInstance (
+    private suspend fun resolveOneToOne (
             queryContext: QueryContext,
             binding: SqlBinding<*, *, *>,
             row: ResultRow
@@ -129,12 +127,14 @@ object QueryOptimizer {
         )
     }
 
-    private suspend fun resolveManyRefItems (
-        request: QueryContext,
-        binding: SqlBinding.OneToManyValues<*, *>,
-        withId: UUID
-    ): SrList<Any> =
-        query { // Run a query to select the ManyRef items
+    private suspend fun resolveOneToMany(request: QueryContext, binding: SqlBinding.OneToMany<*, *>, withId: UUID): SrList<Any> =
+        query { // Run a query to select the one-to-many entities
+            binding.otherTable.select { binding.otherTableFkToPkCol eq withId }
+                .toSet().map { row -> binding.otherTable.convert(request, row).get() }
+        }
+
+    private suspend fun resolveOneToManyValues (request: QueryContext, binding: SqlBinding.OneToManyValues<*, *>, withId: UUID): SrList<Any> =
+        query { // Run a query to select the one-to-many values
             binding.otherTable.select { binding.otherTableFkToPkCol eq withId }
                 .toSet().map { row -> binding.conversionFunction(row) }
         }
