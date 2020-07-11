@@ -25,10 +25,7 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import java.util.*
 
 @ExperimentalCoroutinesApi
-class EntityTableBindingTest : DatabaseConnectedTest(
-    Houses,
-    People
-) {
+class EntityTableBindingTest : DatabaseConnectedTest(Houses, People) {
 
     @SqlTable(People::class)
     class Person(val name: String, uuid: UUID = UUID.randomUUID()) : Entity(uuid)
@@ -69,7 +66,7 @@ class EntityTableBindingTest : DatabaseConnectedTest(
             val rose = Person("Rose")
             val ben = Person("Ben")
 
-            val house = House(
+            val house = House (
                 length = 150,
                 width = 175,
                 occupants = listOf(rose, ben)
@@ -90,7 +87,7 @@ class EntityTableBindingTest : DatabaseConnectedTest(
             val rose = Person("Rose")
             val ben = Person("Ben")
 
-            val house = House(
+            val house = House (
                 length = 150,
                 width = 175,
                 occupants = listOf(rose, ben)
@@ -98,11 +95,7 @@ class EntityTableBindingTest : DatabaseConnectedTest(
 
             Houses.insert(house).get()
             val newHouse = with (queryContext()) {
-                house.update(mapOf(
-                    House::occupants.okHandle!! to listOf(
-                        Person("Kira"),
-                        Person("James")
-                    ))).get()
+                house.update(mapOf(House::occupants.okHandle!! to listOf(Person("Kira"), Person("James")))).get()
             }
             Houses.update(newHouse).get()
 
