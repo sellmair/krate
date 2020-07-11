@@ -1,6 +1,6 @@
 # Module krate
 
-Kotlin library for providing helpers for dealing with databases.
+Unopiniated and simple ORM for Kotlin using Exposed
 
 ## Features
 
@@ -13,7 +13,7 @@ Kotlin library for providing helpers for dealing with databases.
 
 Simply include the library from jitpack
 
-#### Sample  (Gradle Kotlin DSL) :
+#### Sample (Gradle Kotlin DSL) :
 
 ```kotlin
 repositories {
@@ -30,11 +30,11 @@ dependencies {
 
 # Package krate.binding
 
-Handles binding of `EntityTable`s with `Entity`s
+Handles binding of `EntityTable`s with entities
 
 ## Example
 
-A binding can be created as:
+A binding can be created with:
 
 ```kotlin
 @SqlTable(People::class)
@@ -55,11 +55,11 @@ object People : EntityTable<Person>(Person::class, name = "people") {
 
 # Package krate.computed
 
-Houses aggregating of computed properties
+Includes special computed property containers for entities 
 
 # Package krate.computed.extensions
 
-Houses extensions for [krate.extensions](krate.extensions/index.html)
+Extensions for [krate.computed](krate.computed/index.html)
 
 # Package krate.handling
 
@@ -71,5 +71,5 @@ Model classes for dealing with repositories and tables
 
 # Package krate.optimizer
 
-Optimizes SQL queries to reduce the amount of queries executed on the database.  
+Optimizes entity queries on common operations to reduce the amount of effective SQL queries
 
