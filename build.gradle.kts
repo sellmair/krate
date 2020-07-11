@@ -44,7 +44,7 @@ dependencies {
 
     // Reflectr
 
-    api("com.github.blogify-dev", "reflectr", "master-SNAPSHOT")
+    api("com.github.blogify-dev", "reflectr", "ada67bb")
 
     // Jackson
 
