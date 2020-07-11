@@ -11,7 +11,6 @@ import reflectr.entity.Entity
 import reflectr.entity.instantiation.MissingArgumentsException
 import reflectr.SlicedProperty
 import reflectr.getPropValueOnInstance
-
 import reflectr.extensions.*
 
 import org.jetbrains.exposed.sql.*
@@ -60,7 +59,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     private val baseTableSealedClass: KClass<Entity>? get() =
         if (isPolymorphicVariantTable())
             this.klass.allSuperclasses.firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }
-                    ?.let { it as KClass<Entity> }
+                ?.let { it as KClass<Entity> }
         else null
 
     /**
@@ -187,11 +186,11 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      * @param id           the [UUID] of the entity
      */
     open suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> =
-            if (isPolymorphicVariantTable())
-                baseTableSealedClass?.table?.obtain(queryContext, id) as? Sr<TEntity> ?: error("cannot find base table")
-            else query {
-                this.select { uuid eq id }.single()
-            }.map { this.convert(queryContext, it).get() }
+        if (isPolymorphicVariantTable())
+            baseTableSealedClass?.table?.obtain(queryContext, id) as? Sr<TEntity> ?: error("cannot find base table")
+        else query {
+            this.select { uuid eq id }.single()
+        }.map { this.convert(queryContext, it).get() }
 
     /**
      * Performs the conversion between a single [ResultRow] and an instance of [TEntity]. Should not be used directly.
