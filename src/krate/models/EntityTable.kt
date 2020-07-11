@@ -164,7 +164,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      */
     open suspend fun obtainListing (
         queryContext: QueryContext,
-        selectCondition: SqlExpressionBuilder.() -> Op<Boolean>,
+        selectCondition: SqlExpressionBuilder.() -> Op<Boolean> = { Op.TRUE },
         quantity: Int,
         page: Int,
         orderBy: Column<*>,
