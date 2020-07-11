@@ -23,12 +23,9 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.extension.ExtensionContext
 
 import epgx.models.PgTable
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestCoroutineDispatcher
 
-import kotlinx.coroutines.test.runBlockingTest
 import kotlin.reflect.KClass
+import kotlinx.coroutines.runBlocking
 
 import java.util.*
 
@@ -69,7 +66,9 @@ open class DatabaseConnectedTest(private vararg val tables: PgTable = arrayOf())
         println("=== [ Test : $name ] ===\n")
     }
 
-    override fun afterEach(context: ExtensionContext?) = println()
+    override fun afterEach(context: ExtensionContext?) {
+        println()
+    }
 
     @AfterAll
     fun tearDownTables() {
@@ -77,3 +76,4 @@ open class DatabaseConnectedTest(private vararg val tables: PgTable = arrayOf())
     }
 
 }
+

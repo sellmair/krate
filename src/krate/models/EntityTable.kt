@@ -1,5 +1,6 @@
 package krate.models
 
+import com.github.kittinunf.result.coroutines.SuspendableResult
 import krate.binding.SqlBinding
 import krate.optimizer.QueryOptimizer
 import krate.handling.query
@@ -283,19 +284,44 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      *
      * @return the entity itself if the insert was successful
      */
-    open suspend fun insert(entity: TEntity, forBinding: SqlBinding<*, *, *>? = null, parentEntity: Entity? = null): Sr<TEntity> = query {
+    open suspend fun insert(entity: TEntity, forBinding: SqlBinding<*, *, *>? = null, parentEntity: Entity? = null): Sr<TEntity> = Wrap {
         if (isPolymorphicVariantTable())
-            return@query this.baseTableSealedClass?.table?.insert(entity) ?: error("cannot access base table")
+            return@Wrap this.baseTableSealedClass?.table?.insert(entity) ?: error("cannot access base table")
 
         require (forBinding == null || parentEntity != null) { "call to insert() for a binding must specify parent entity" }
 
-        this.insert {
-            if (forBinding is SqlBinding.OneToMany<*, *>)
-                it[forBinding.otherTableFkToPkCol] = parentEntity!!.uuid
+        val entityExistsInDb = transaction {
+            select { uuid eq entity.uuid }.toSet()
+        }.size == 1
 
-            for (binding in bindings) {
-                if (binding !is SqlBinding.OneToManyValues<*, *>)
-                    applyBindingToInsertOrUpdate(entity, it, binding)
+        if (entityExistsInDb) {
+            var message = "entity '${entity.uuid}' of type '${entity::class.simpleName}' already exists in table '${this.tableName}'"
+            if (forBinding != null) {
+                message += " (while applying binding of type ${forBinding::class.simpleName} on property ${forBinding.property.klass.simpleName}::${forBinding.property.name})"
+            }
+
+            throw IllegalStateException(message)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        for (binding in bindings.filter { it is SqlBinding.OneToOne || it is SqlBinding.OneToOneOrNone }) {
+            binding as SqlBinding<TEntity, Entity?, UUID?>
+
+            val instance = binding.property.get(entity) ?: break
+            val instanceClassTable = instance::class.table as EntityTable<Entity>
+
+            instanceClassTable.insert(instance, binding, entity).get()
+        }
+
+        transaction {
+            insert {
+                if (forBinding is SqlBinding.OneToMany<*, *>)
+                    it[forBinding.otherTableFkToPkCol] = parentEntity!!.uuid
+
+                for (binding in bindings) {
+                    if (binding !is SqlBinding.OneToMany<*, *> && binding !is SqlBinding.OneToManyValues<*, *>)
+                        applyBindingToInsertOrUpdate(entity, it, binding)
+                }
             }
         }
 
@@ -303,15 +329,22 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
             val instances = binding.property.get(entity)
             val bindingTable = binding.otherTable
 
-            bindingTable.batchInsert(instances) { item ->
-                binding.insertionFunction(entity, item, this)
+            transaction {
+                bindingTable.batchInsert(instances) { item ->
+                    binding.insertionFunction(entity, item, this)
+                }
             }
         }
     }.map { entity }.also {
+        if (it is SuspendableResult.Failure) // If the main insertion failed don't try to insert OTO entities
+            return@also
+
         // Handle entity manyref bindings in another tx because Exposed doesn't support deferred constraints
 
         for (binding in bindings.filterIsInstance<SqlBinding.OneToMany<TEntity, Entity>>()) {
-            binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding, parentEntity = entity).get() }
+            binding.property.get(entity).forEach { item ->
+                binding.otherTable.insert(item, forBinding = binding, parentEntity = entity).get()
+            }
         }
     }
 

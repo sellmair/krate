@@ -23,7 +23,7 @@ import krate.DatabaseConnectedTest
 import java.util.*
 
 @DisplayName("PolymorphicEntityTable basic CRUD operations test")
-class PolymorphicEntityTableTest : DatabaseConnectedTest(
+class PolymorphicEntityTableTest : DatabaseConnectedTest (
     TestTable,
     TestTable.A,
     TestTable.B,
@@ -54,8 +54,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(
             bind(age, TestEntity::age)
         }
 
-        object A : EntityTable<TestEntity.A>(
-            TestEntity.A::class) {
+        object A : EntityTable<TestEntity.A>(TestEntity.A::class) {
             val extra = text ("extra")
 
             init {
@@ -63,8 +62,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(
             }
         }
 
-        object B : EntityTable<TestEntity.B>(
-            TestEntity.B::class) {
+        object B : EntityTable<TestEntity.B>(TestEntity.B::class) {
             val another = float ("another")
 
             init {
@@ -97,8 +95,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(
             })
         }
 
-        object A : EntityTable<ComplexTestEntity.A>(
-            ComplexTestEntity.A::class) {
+        object A : EntityTable<ComplexTestEntity.A>(ComplexTestEntity.A::class) {
 
             val extra = text ("extra")
 
@@ -172,19 +169,9 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest(
     inner class References {
 
         @Test fun `should be able to insert with manyref items in base property in base table`() {
-            val othersObjects = Array(5) {
-                SimpleObject(
-                    it.toString(
-                        16
-                    )
-                )
-            }.toList()
+            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
 
-            val entity = ComplexTestEntity.A(
-                "hi !",
-                "Henry",
-                othersObjects
-            )
+            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
 
             assertDoesNotThrow {
                 blockingTransaction {
