@@ -295,12 +295,19 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         }.size == 1
 
         if (entityExistsInDb) {
-            var message = "entity '${entity.uuid}' of type '${entity::class.simpleName}' already exists in table '${this.tableName}'"
-            if (forBinding != null) {
-                message += " (while applying binding of type ${forBinding::class.simpleName} on property ${forBinding.property.klass.simpleName}::${forBinding.property.name})"
-            }
+            when (forBinding) {
+                is SqlBinding.OneToOne,
+                is SqlBinding.OneToOneOrNone,
+                is SqlBinding.OneToMany<*, *>, // OneToX and parent insertion require entity to not already exist in DB
+                null -> {
+                    var message = "entity '${entity.uuid}' of type '${entity::class.simpleName}' already exists in table '${this.tableName}'"
+                    if (forBinding != null)
+                        message += " (while applying binding of type ${forBinding::class.simpleName} on property ${forBinding.property.klass.simpleName}::${forBinding.property.name})"
 
-            throw IllegalStateException(message)
+                    throw IllegalStateException(message)
+                }
+                else -> never
+            }
         }
 
         @Suppress("UNCHECKED_CAST")
