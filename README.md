@@ -1,6 +1,6 @@
 # Krate
 
-`krate` provides helpers for dealing with databases.
+Unopiniated and simple ORM for Kotlin using Exposed
 
 ## Features
 
