@@ -16,9 +16,9 @@ import kotlin.reflect.KProperty1
  * Represents a binding between a [property] of [TEntity]::class and it's storage in the database
  *
  * @see Value
- * @see Reference
- * @see NullableReference
- * @see ReferenceToMany
+ * @see OneToOne
+ * @see OneToOneOrNone
+ * @see OneToManyValues
  *
  * @author Benjozork
  *
@@ -58,7 +58,7 @@ sealed class SqlBinding<TEntity : Entity, TProperty : Any?, TColumn : Any?> (
     /**
      * Binds [property] to a column of [table] containing UUIDs
      */
-    class Reference<TEntity : Entity, TProperty : Entity> (
+    class OneToOne<TEntity : Entity, TProperty : Entity> (
         table: EntityTable<TEntity>,
         property: KProperty1<TEntity, TProperty>,
         override val column: Column<UUID>
@@ -74,7 +74,7 @@ sealed class SqlBinding<TEntity : Entity, TProperty : Any?, TColumn : Any?> (
     /**
      * Binds [property] to a nullable column of [table] containing UUIDs
      */
-    class NullableReference<TEntity : Entity, TProperty : Entity?> (
+    class OneToOneOrNone<TEntity : Entity, TProperty : Entity?> (
         table: EntityTable<TEntity>,
         property: KProperty1<TEntity, TProperty>,
         override val column: Column<UUID?>
@@ -87,12 +87,31 @@ sealed class SqlBinding<TEntity : Entity, TProperty : Any?, TColumn : Any?> (
 
     }
 
+
+    /**
+     * Binds [property] to [another table][otherTable] containing its entity values
+     *
+     * note: [otherTable] must contain one and only one FK from one if its columns with UUID type to the PK of [table]
+     */
+    class OneToMany<TEntity : Entity, TProperty : Entity> (
+        table: EntityTable<TEntity>,
+        property: KProperty1<TEntity, Collection<TProperty>>,
+        val otherTable: EntityTable<TProperty>
+    ) : SqlBinding<TEntity, Collection<TProperty>, UUID>(table, property) {
+
+        @Suppress("UNCHECKED_CAST")
+        val otherTableFkToPkCol = otherTable.foreignKeyTo(table)
+            ?: error("cannot make a ReferenceToMany SqlBinding: no foreign key from target table (${otherTable.tableName}) to PK of origin table (${table.tableName})")
+
+    }
+
+
     /**
      * Binds [property] to [another table][otherTable] containing its values
      *
      * note: [otherTable] must contain one and only one FK from one if its columns with UUID type to the PK of [table]
      */
-    class ReferenceToMany<TEntity : Entity, TProperty : Any> (
+    class OneToManyValues<TEntity : Entity, TProperty : Any> (
         table: EntityTable<TEntity>,
         property: KProperty1<TEntity, Collection<TProperty>>,
         val otherTable: Table,
@@ -103,23 +122,6 @@ sealed class SqlBinding<TEntity : Entity, TProperty : Any?, TColumn : Any?> (
         @Suppress("UNCHECKED_CAST")
         val otherTableFkToPkCol = otherTable.foreignKeyTo(table)
             ?: error("cannot make a ReferenceToMany SqlBinding: no foreign key from target table to PK of origin table")
-
-    }
-
-    /**
-     * Binds [property] to [another table][otherTable] containing its entity values
-     *
-     * note: [otherTable] must contain one and only one FK from one if its columns with UUID type to the PK of [table]
-     */
-    class ReferenceToManyEntities<TEntity : Entity, TProperty : Entity> (
-        table: EntityTable<TEntity>,
-        property: KProperty1<TEntity, Collection<TProperty>>,
-        val otherTable: EntityTable<TProperty>
-    ) : SqlBinding<TEntity, Collection<TProperty>, UUID>(table, property) {
-
-        @Suppress("UNCHECKED_CAST")
-        val otherTableFkToPkCol = otherTable.foreignKeyTo(table)
-            ?: error("cannot make a ReferenceToMany SqlBinding: no foreign key from target table (${otherTable.tableName}) to PK of origin table (${table.tableName})")
 
     }
 

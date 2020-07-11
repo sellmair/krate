@@ -85,8 +85,8 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      * @param column   the column in which UUIDs of instances of [property] are stored
      * @param property the property of [TEntity]`::class` to bind
      */
-    fun <TProperty : Entity?> bind(column: Column<UUID?>, property: KProperty1<TEntity, TProperty>): SqlBinding.NullableReference<TEntity, TProperty> {
-        return SqlBinding.NullableReference(this@EntityTable, property, column)
+    fun <TProperty : Entity?> bind(column: Column<UUID?>, property: KProperty1<TEntity, TProperty>): SqlBinding.OneToOneOrNone<TEntity, TProperty> {
+        return SqlBinding.OneToOneOrNone(this@EntityTable, property, column)
             .also { this.bindings += it }
     }
 
@@ -96,8 +96,8 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      * @param column   the column in which UUIDs of instances of [property] are stored
      * @param property the property of [TEntity]`::class` to bind
      */
-    fun <TProperty : Entity> bind(column: Column<UUID>, property: KProperty1<TEntity, TProperty>): SqlBinding.Reference<TEntity, TProperty> {
-        return SqlBinding.Reference(this@EntityTable, property, column)
+    fun <TProperty : Entity> bind(column: Column<UUID>, property: KProperty1<TEntity, TProperty>): SqlBinding.OneToOne<TEntity, TProperty> {
+        return SqlBinding.OneToOne(this@EntityTable, property, column)
             .also { this.bindings += it }
     }
 
@@ -114,12 +114,12 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         property: KProperty1<TEntity, Collection<TProperty>>,
         conversionFunction: (ResultRow) -> TProperty,
         insertionFunction: (TEntity, TProperty, UpdateBuilder<Number>) -> Unit
-    ): SqlBinding.ReferenceToMany<TEntity, TProperty> {
+    ): SqlBinding.OneToManyValues<TEntity, TProperty> {
         require (
-            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.ReferenceToMany<*, *> && it.table == table } ?: true
+            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.OneToManyValues<*, *> && it.table == table } ?: true
         ) { "cannot create a ReferenceToMany binding when base table already has a ReferenceToMany binding to the same table" }
 
-        return SqlBinding.ReferenceToMany(this@EntityTable, property, table, conversionFunction, insertionFunction)
+        return SqlBinding.OneToManyValues(this@EntityTable, property, table, conversionFunction, insertionFunction)
             .also { this.bindings += it }
     }
 
@@ -134,12 +134,12 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     fun <TProperty : Entity> bind (
         table: EntityTable<TProperty>,
         property: KProperty1<TEntity, Collection<TProperty>>
-    ): SqlBinding.ReferenceToManyEntities<TEntity, TProperty> {
+    ): SqlBinding.OneToMany<TEntity, TProperty> {
         require (
-            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.ReferenceToMany<*, *> && it.table == table } ?: true
+            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.OneToManyValues<*, *> && it.table == table } ?: true
         ) { "cannot create a ReferenceToMany binding when base table already has a ReferenceToMany binding to the same table" }
 
-        return SqlBinding.ReferenceToManyEntities(this@EntityTable, property, table)
+        return SqlBinding.OneToMany(this@EntityTable, property, table)
             .also { this.bindings += it }
     }
 
@@ -214,7 +214,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
                 is SqlBinding.HasColumn<*> -> {
                     (binding.property.okHandle ?: never) to get(binding.column)
                 }
-                is SqlBinding.ReferenceToMany<*, *> -> {
+                is SqlBinding.OneToManyValues<*, *> -> {
                     val entityId = get(this.uuid)
 
                     (binding.property.okHandle ?: never) to unwrappedQuery {
@@ -222,7 +222,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
                             .toSet().map { row -> binding.conversionFunction(row) }
                     }
                 }
-                is SqlBinding.ReferenceToManyEntities<*, *> -> {
+                is SqlBinding.OneToMany<*, *> -> {
                     val entityId = get(this.uuid)
 
                     (binding.property.okHandle ?: never) to unwrappedQuery {
@@ -259,7 +259,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         insertStatement: UpdateBuilder<Number>,
         binding: SqlBinding<TEntity, TProperty, *>
     ) {
-        assert(binding !is SqlBinding.ReferenceToMany<*, *>) { "applyBindingToInsertOrUpdate should not be called on SqlBinding.ReferenceToMany" }
+        assert(binding !is SqlBinding.OneToManyValues<*, *>) { "applyBindingToInsertOrUpdate should not be called on SqlBinding.ReferenceToMany" }
 
         val slicedProperty = getPropValueOnInstance (
             instance = entity,
@@ -291,16 +291,16 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         require (forBinding == null || parentEntity != null) { "call to insert() for a binding must specify parent entity" }
 
         this.insert {
-            if (forBinding is SqlBinding.ReferenceToManyEntities<*, *>)
+            if (forBinding is SqlBinding.OneToMany<*, *>)
                 it[forBinding.otherTableFkToPkCol] = parentEntity!!.uuid
 
             for (binding in bindings) {
-                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                if (binding !is SqlBinding.OneToManyValues<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
             }
         }
 
-        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+        for (binding in bindings.filterIsInstance<SqlBinding.OneToManyValues<TEntity, Any>>()) {
             val instances = binding.property.get(entity)
             val bindingTable = binding.otherTable
 
@@ -311,7 +311,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     }.map { entity }.also {
         // Handle entity manyref bindings in another tx because Exposed doesn't support deferred constraints
 
-        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+        for (binding in bindings.filterIsInstance<SqlBinding.OneToMany<TEntity, Entity>>()) {
             binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding, parentEntity = entity).get() }
         }
     }
@@ -327,12 +327,12 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
 
         this.update({ uuid eq entity.uuid }) {
             for (binding in bindings) {
-                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                if (binding !is SqlBinding.OneToManyValues<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
             }
         }
 
-        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+        for (binding in bindings.filterIsInstance<SqlBinding.OneToManyValues<TEntity, Any>>()) {
             val newInstances = binding.property.get(entity)
 
             binding.otherTable.deleteWhere { binding.otherTableFkToPkCol eq entity.uuid }
@@ -342,7 +342,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     }.map { entity }.also {
         // Handle entity manyref bindings in another tx because Exposed doesn't support deferred constraints
 
-        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+        for (binding in bindings.filterIsInstance<SqlBinding.OneToMany<TEntity, Entity>>()) {
             transaction {
                 binding.otherTable.deleteWhere { binding.otherTableFkToPkCol eq entity.uuid }
             }

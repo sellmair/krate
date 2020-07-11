@@ -48,7 +48,7 @@ object QueryOptimizer {
      * of [TEntity] using the data in the row.
      *
      * This takes care of feeding the columns to the convert() functions of the [tables][krate.models.EntityTable] for
-     * the classes of the different properties of [TEntity], and of running additional queries for [x-to-many references][SqlBinding.ReferenceToMany] if needed.
+     * the classes of the different properties of [TEntity], and of running additional queries for [x-to-many references][SqlBinding.OneToManyValues] if needed.
      *
      * @param queryContext the [QueryContext] for caching
      * @param klass          the class associated with [TEntity], used for reflection purposes
@@ -63,15 +63,15 @@ object QueryOptimizer {
             val bindingsData: MappedData = klass.table.bindings.map { binding ->
                 binding.property.okHandle!! to Wrap {
                     when (binding) {
-                        is SqlBinding.Reference<*, *>,
-                        is SqlBinding.NullableReference<*, *> ->
+                        is SqlBinding.OneToOne<*, *>,
+                        is SqlBinding.OneToOneOrNone<*, *> ->
                             resolveSingleRefInstance(
                                 queryContext,
                                 binding,
                                 row
                             )
                                 .get()
-                        is SqlBinding.ReferenceToMany<*, *> -> {
+                        is SqlBinding.OneToManyValues<*, *> -> {
                             resolveManyRefItems(
                                 queryContext,
                                 binding,
@@ -116,7 +116,7 @@ object QueryOptimizer {
         val rightTableAlias = bindingRightTable.alias("${binding.property.klass.simpleName}->${binding.property.name}")
 
         // If row[bindingRightTable.uuid] is null, the item is null, so we should return a failure accordingly
-        if (binding is SqlBinding.NullableReference)
+        if (binding is SqlBinding.OneToOneOrNone)
             letCatchingOrNull {
                 row[rightTableAlias[bindingRightTable.uuid]]
             } ?: return Sr.error(NullValue)
@@ -130,9 +130,9 @@ object QueryOptimizer {
     }
 
     private suspend fun resolveManyRefItems (
-            request: QueryContext,
-            binding: SqlBinding.ReferenceToMany<*, *>,
-            withId: UUID
+        request: QueryContext,
+        binding: SqlBinding.OneToManyValues<*, *>,
+        withId: UUID
     ): SrList<Any> =
         query { // Run a query to select the ManyRef items
             binding.otherTable.select { binding.otherTableFkToPkCol eq withId }

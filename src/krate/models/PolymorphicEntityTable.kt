@@ -119,12 +119,12 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
 
         this.insert {
             for (binding in bindings) {
-                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                if (binding !is SqlBinding.OneToManyValues<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
             }
         }
 
-        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+        for (binding in bindings.filterIsInstance<SqlBinding.OneToManyValues<TEntity, Any>>()) {
             val instances = binding.property.get(entity)
             val bindingTable = binding.otherTable
 
@@ -133,7 +133,7 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
             }
         }
 
-        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+        for (binding in bindings.filterIsInstance<SqlBinding.OneToMany<TEntity, Entity>>()) {
             binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding) }
         }
 
@@ -143,12 +143,12 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
             it[entityVariantTable.uuid] = entity.uuid
 
             for (binding in entityVariantTable.bindings) {
-                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                if (binding !is SqlBinding.OneToManyValues<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
             }
         }
 
-        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.OneToManyValues<TEntity, Any>>()) {
             val instances = binding.property.get(entity)
             val bindingTable = binding.otherTable
 
@@ -157,7 +157,7 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
             }
         }
 
-        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.ReferenceToManyEntities<TEntity, Entity>>()) {
+        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.OneToMany<TEntity, Entity>>()) {
             binding.property.get(entity).forEach { item -> binding.otherTable.insert(item, forBinding = binding) }
         }
     }.map { entity }
@@ -171,12 +171,12 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
 
         this.update({ uuid eq entity.uuid }) {
             for (binding in bindings) {
-                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                if (binding !is SqlBinding.OneToManyValues<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
             }
         }
 
-        for (binding in bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+        for (binding in bindings.filterIsInstance<SqlBinding.OneToManyValues<TEntity, Any>>()) {
             val newInstances = binding.property.get(entity)
 
             binding.otherTable.deleteWhere { binding.otherTableFkToPkCol eq entity.uuid }
@@ -188,12 +188,12 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
 
         entityVariantTable.update({ entityVariantTable.uuid eq entity.uuid }) {
             for (binding in entityVariantTable.bindings) {
-                if (binding !is SqlBinding.ReferenceToMany<*, *>)
+                if (binding !is SqlBinding.OneToManyValues<*, *>)
                     applyBindingToInsertOrUpdate(entity, it, binding)
             }
         }
 
-        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.ReferenceToMany<TEntity, Any>>()) {
+        for (binding in entityVariantTable.bindings.filterIsInstance<SqlBinding.OneToManyValues<TEntity, Any>>()) {
             val newInstances = binding.property.get(entity)
 
             binding.otherTable.deleteWhere { binding.otherTableFkToPkCol eq entity.uuid }
