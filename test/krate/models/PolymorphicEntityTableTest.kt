@@ -187,19 +187,9 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
         }
 
         @Test fun `should be able to insert with manyref items in base property in variant table`() {
-            val othersObjects = Array(5) {
-                SimpleObject(
-                    it.toString(
-                        16
-                    )
-                )
-            }.toList()
+            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
 
-            val entity = ComplexTestEntity.A(
-                "hi !",
-                "Henry",
-                othersObjects
-            )
+            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
 
             assertDoesNotThrow {
                 blockingTransaction {
@@ -215,19 +205,9 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
         }
 
         @Test fun `should be able to delete instance of variant with manyref in base table`() {
-            val othersObjects = Array(5) {
-                SimpleObject(
-                    it.toString(
-                        16
-                    )
-                )
-            }.toList()
+            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
 
-            val entity = ComplexTestEntity.A(
-                "hi !",
-                "Henry",
-                othersObjects
-            )
+            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
 
             assertDoesNotThrow {
                 blockingTransaction {
@@ -242,19 +222,9 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
         }
 
         @Test fun `should be able to delete instance of variant with manyref in variant table`() = runBlockingTest {
-            val othersObjects = Array(5) {
-                SimpleObject(
-                    it.toString(
-                        16
-                    )
-                )
-            }.toList()
+            val othersObjects = Array(5) { SimpleObject(it.toString(16)) }.toList()
 
-            val entity = ComplexTestEntity.A(
-                "hi !",
-                "Henry",
-                othersObjects
-            )
+            val entity = ComplexTestEntity.A("hi !", "Henry", othersObjects)
 
             assertDoesNotThrow {
                 blockingTransaction {
@@ -306,23 +276,8 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
             }
 
             val entities = listOf (
-                ComplexTestEntity.A(
-                    "something special",
-                    "Jane",
-                    listOf(
-                        SimpleObject("tool"),
-                        SimpleObject("desk")
-                    )
-                ),
-                ComplexTestEntity.A(
-                    "a boring thing",
-                    "Samuel",
-                    listOf(
-                        SimpleObject("cucumber"),
-                        SimpleObject("tomato"),
-                        SimpleObject("chair")
-                    )
-                )
+                ComplexTestEntity.A("something special", "Jane", listOf(SimpleObject("tool"), SimpleObject("desk"))),
+                ComplexTestEntity.A("a boring thing", "Samuel", listOf(SimpleObject("cucumber"), SimpleObject("tomato"), SimpleObject("chair")))
             )
 
             assertDoesNotThrow {
@@ -364,8 +319,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
     @Test fun `should be able to delete instance of variant in variant table`() {
         assertDoesNotThrow {
             blockingTransaction {
-                val entity =
-                    TestEntity.A("fries", "James", 19)
+                val entity = TestEntity.A("fries", "James", 19)
 
                 TestTable.A.insert(entity).get()
                 TestTable.A.delete(entity)
@@ -382,8 +336,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
     @Test fun `should be able to update instance of variant in base table`() {
         assertDoesNotThrow {
             blockingTransaction {
-                val entity =
-                    TestEntity.A("fries", "James", 19)
+                val entity = TestEntity.A("fries", "James", 19)
 
                 TestTable.insert(entity).get()
 
@@ -403,8 +356,7 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
     @Test fun `should be able to update instance of variant in variant table`() {
         assertDoesNotThrow {
             blockingTransaction {
-                val entity =
-                    TestEntity.A("fries", "James", 19)
+                val entity = TestEntity.A("fries", "James", 19)
 
                 TestTable.A.insert(entity).get()
 
