@@ -20,6 +20,7 @@ import org.jetbrains.exposed.sql.statements.UpdateBuilder
 
 import epgx.models.PgTable
 
+import com.github.kittinunf.result.coroutines.SuspendableResult
 import com.github.kittinunf.result.coroutines.map
 import com.github.kittinunf.result.coroutines.mapError
 
@@ -171,15 +172,30 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         page: Int,
         orderBy: Column<*>,
         sortOrder: SortOrder = SortOrder.ASC
-    ): Sr<Pair<List<TEntity>, Boolean>> = query {
-        QueryOptimizer.optimize(this.klass, selectCondition)
-            .orderBy(orderBy, sortOrder)
-            //               v-- We add one to check if we reached the end
-            .limit(quantity + 1, (page * quantity).toLong())
-            .toList()
-    }.map { results ->
-        QueryOptimizer.convertOptimizedRows(queryContext, klass, results)
-            .take(quantity) to (results.size - 1 == quantity)
+    ): Sr<Pair<List<TEntity>, Boolean>> {
+        return if (isPolymorphicVariantTable()) query {
+            val baseTable = this.baseTableSealedClass!!.table
+
+            baseTable.primaryKey
+
+            val baseRowSet = baseTable.innerJoin(this)
+                .selectAll()
+                .orderBy(orderBy, sortOrder)
+                //               v-- We add one to check if we reached the end
+                .limit(quantity + 1, (page * quantity).toLong())
+                .toList().also { println(it.size) }
+
+            baseRowSet.map { this.convert(queryContext, it).get() } to false
+        } else query {
+            QueryOptimizer.optimize(this.klass, selectCondition)
+                .orderBy(orderBy, sortOrder)
+                //               v-- We add one to check if we reached the end
+                .limit(quantity + 1, (page * quantity).toLong())
+                .toList()
+        }.map { results ->
+            QueryOptimizer.convertOptimizedRows(queryContext, klass, results)
+                .take(quantity) to (results.size - 1 == quantity)
+        }
     }
 
     /**
