@@ -185,7 +185,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
             baseTable.primaryKey
 
             val baseRowSet = baseTable.innerJoin(this)
-                .selectAll()
+                .select(selectCondition)
                 .orderBy(orderBy, sortOrder)
                 //               v-- We add one to check if we reached the end
                 .limit(quantity + 1, (page * quantity).toLong())
