@@ -1,11 +1,11 @@
 package krate.models
 
-import com.github.kittinunf.result.coroutines.SuspendableResult
 import krate.binding.SqlBinding
 import krate.optimizer.QueryOptimizer
 import krate.handling.query
 import krate.handling.unwrappedQuery
 import krate.binding.table
+import krate.binding.safeTable
 import krate.util.*
 
 import reflectr.entity.Entity
@@ -53,7 +53,9 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     @Suppress("UNCHECKED_CAST")
     private fun isPolymorphicVariantTable() =
         this.klass.superclasses
-            .firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }?.let { true }
+            .firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }
+            ?.takeIf { (it as KClass<out Entity>).safeTable?.let { t -> t is PolymorphicEntityTable } ?: false }
+            ?.let { true }
             ?: false
 
     @Suppress("UNCHECKED_CAST")
