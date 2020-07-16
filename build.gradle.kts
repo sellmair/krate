@@ -81,14 +81,16 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx", "kotlinx-coroutines-test", coroutines_version)
 }
 
-artifacts {
-    archives(tasks.kotlinSourcesJar)
+val sourcesJar by tasks.creating(Jar::class) {
+    archiveClassifier.set("sources")
+    from(sourceSets.getByName("main").allSource)
 }
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["kotlin"])
+            artifact(sourcesJar)
         }
     }
 }
