@@ -75,7 +75,7 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
         this.primaryKey
 
         val baseRowSet = variantTables.values.fold<EntityTable<*>, ColumnSet>(this) { join, table -> join.leftJoin(table) }
-            .selectAll()
+            .select(selectCondition)
             .orderBy(orderBy, sortOrder)
             //               v-- We add one to check if we reached the end
             .limit(quantity + 1, (page * quantity).toLong())
