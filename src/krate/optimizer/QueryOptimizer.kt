@@ -1,6 +1,6 @@
 package krate.optimizer
 
-import com.github.kittinunf.result.coroutines.SuspendableResult
+import krate.models.PolymorphicEntityTable
 import krate.models.QueryContext
 import krate.binding.table
 import krate.binding.SqlBinding
@@ -15,6 +15,7 @@ import reflectr.util.MappedData
 
 import org.jetbrains.exposed.sql.*
 
+import com.github.kittinunf.result.coroutines.SuspendableResult
 import com.github.kittinunf.result.coroutines.mapError
 
 import kotlin.reflect.KClass
@@ -118,6 +119,10 @@ object QueryOptimizer {
             letCatchingOrNull {
                 row[rightTableAlias[bindingRightTable.uuid]]
             } ?: return Sr.error(NullValue)
+
+        if (bindingRightTable is PolymorphicEntityTable) {
+            return bindingRightTable.obtain(queryContext, row[rightTableAlias[bindingRightTable.uuid]])
+        }
 
         // Call convert() on the property's table with the row; it contains its data too
         return bindingRightTable.convert (
