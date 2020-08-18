@@ -72,8 +72,10 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
         orderBy: Column<*>,
         sortOrder: SortOrder
     ): Sr<Pair<List<TEntity>, Boolean>> = query {
+        this.primaryKey
+
         val baseRowSet = variantTables.values.fold<EntityTable<*>, ColumnSet>(this) { join, table -> join.leftJoin(table) }
-            .selectAll()
+            .select(selectCondition)
             .orderBy(orderBy, sortOrder)
             //               v-- We add one to check if we reached the end
             .limit(quantity + 1, (page * quantity).toLong())
@@ -84,6 +86,8 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
     }
 
     override suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> = query {
+        this.primaryKey
+
         val baseRow = select {
             uuid eq id
         }.single()
@@ -110,6 +114,8 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun insert(entity: TEntity, forBinding: SqlBinding<*, *, *>?, parentEntity: Entity?): Sr<TEntity> = query {
+        this.primaryKey
+
         require (forBinding == null || parentEntity != null) { "call to insert() for a binding must specify parent entity" }
 
         val klass = entity::class as KClass<TEntity>
@@ -164,6 +170,8 @@ abstract class PolymorphicEntityTable<TEntity : Entity>(klass: KClass<out TEntit
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun update(entity: TEntity): Sr<TEntity> = query {
+        this.primaryKey
+
         val klass = entity::class as KClass<TEntity>
         val entityVariantTable = klass.table
 

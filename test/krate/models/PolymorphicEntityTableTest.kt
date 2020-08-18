@@ -4,6 +4,7 @@ import krate.models.PolymorphicEntityTableTest.SimpleObjectTable.type
 import krate.models.PolymorphicEntityTableTest.SimpleObjectTable.cte
 import krate.extensions.parentKey
 import krate.binding.SqlTable
+import krate.DatabaseConnectedTest
 
 import reflectr.entity.Entity
 import reflectr.extensions.okHandle
@@ -17,8 +18,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Assertions.*
 
 import epgx.models.PgTable
+
 import kotlinx.coroutines.test.runBlockingTest
-import krate.DatabaseConnectedTest
 
 import java.util.*
 
@@ -243,57 +244,120 @@ class PolymorphicEntityTableTest : DatabaseConnectedTest (
     @Nested
     inner class Listings {
 
-        @Test fun `should be able to insert and select instances of multiple variants`() {
-            transaction {
-                TestTable.deleteAll()
-            }
+        @Nested
+        inner class InBaseTable {
 
-            val entities = listOf (
-                TestEntity.A("fries", "James", 19),
-                TestEntity.A("burgers", "Simon", 35),
-                TestEntity.B(2.0f, "Michael", 14)
-            )
+            @Test fun `should be able to insert and select instances of multiple variants`() {
+                transaction {
+                    TestTable.deleteAll()
+                }
 
-            assertDoesNotThrow {
-                blockingTransaction {
-                    entities.forEach { entity -> TestTable.insert(entity) }
+                val entities = listOf (
+                    TestEntity.A("fries", "James", 19),
+                    TestEntity.A("burgers", "Simon", 35),
+                    TestEntity.B(2.0f, "Michael", 14)
+                )
 
-                    val selectedEntities = TestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
-                        TestTable.name
-                    ).get()
+                assertDoesNotThrow {
+                    blockingTransaction {
+                        entities.forEach { entity -> TestTable.insert(entity) }
 
-                    assertEquals (
-                        entities.map { it.uuid }.sorted(),
-                        selectedEntities.first.map { it.uuid }.sorted()
-                    )
+                        val selectedEntities = TestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
+                            TestTable.name
+                        ).get()
+
+                        assertEquals (
+                            entities.map { it.uuid }.sorted(),
+                            selectedEntities.first.map { it.uuid }.sorted()
+                        )
+                    }
                 }
             }
+
+            @Test fun `should be able to insert and select instances of multiple variants with manyref items`() {
+                transaction {
+                    ComplexTestTable.deleteAll()
+                }
+
+                val entities = listOf (
+                    ComplexTestEntity.A("something special", "Jane", listOf(SimpleObject("tool"), SimpleObject("desk"))),
+                    ComplexTestEntity.A("a boring thing", "Samuel", listOf(SimpleObject("cucumber"), SimpleObject("tomato"), SimpleObject("chair")))
+                )
+
+                assertDoesNotThrow {
+                    blockingTransaction {
+                        entities.forEach { entity -> ComplexTestTable.insert(entity) }
+
+                        val selectedEntities = ComplexTestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
+                            ComplexTestTable.name
+                        ).get()
+
+                        assertEquals (
+                            entities.map { it.uuid }.sorted(),
+                            selectedEntities.first.map { it.uuid }.sorted()
+                        )
+                    }
+                }
+            }
+
         }
 
-        @Test fun `should be able to insert and select instances of multiple variants with manyref items`() {
-            transaction {
-                ComplexTestTable.deleteAll()
-            }
+        @Nested
+        inner class InVariantTable {
 
-            val entities = listOf (
-                ComplexTestEntity.A("something special", "Jane", listOf(SimpleObject("tool"), SimpleObject("desk"))),
-                ComplexTestEntity.A("a boring thing", "Samuel", listOf(SimpleObject("cucumber"), SimpleObject("tomato"), SimpleObject("chair")))
-            )
+            @Test fun `should be able to insert and select instances of the same variant`() {
+                transaction {
+                    TestTable.deleteAll()
+                }
 
-            assertDoesNotThrow {
-                blockingTransaction {
-                    entities.forEach { entity -> ComplexTestTable.insert(entity) }
+                val entities = listOf (
+                    TestEntity.A("fries", "James", 19),
+                    TestEntity.A("burgers", "Simon", 35),
+                    TestEntity.B(2.0f, "Michael", 14)
+                )
 
-                    val selectedEntities = ComplexTestTable.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
-                        ComplexTestTable.name
-                    ).get()
+                assertDoesNotThrow {
+                    blockingTransaction {
+                        entities.forEach { entity -> TestTable.insert(entity) }
 
-                    assertEquals (
-                        entities.map { it.uuid }.sorted(),
-                        selectedEntities.first.map { it.uuid }.sorted()
-                    )
+                        val selectedEntities = TestTable.A.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
+                            TestTable.name
+                        ).get()
+
+                        assertEquals (
+                            entities.filterIsInstance<TestEntity.A>().map { it.uuid }.sorted(),
+                            selectedEntities.first.map { it.uuid }.sorted()
+                        )
+                    }
                 }
             }
+
+            @Test fun `should be able to insert and select instances of multiple variants with manyref items`() {
+                transaction {
+                    ComplexTestTable.deleteAll()
+                }
+
+                val entities = listOf (
+                    ComplexTestEntity.A("something special", "Jane", listOf(SimpleObject("tool"), SimpleObject("desk"))),
+                    ComplexTestEntity.A("a boring thing", "Samuel", listOf(SimpleObject("cucumber"), SimpleObject("tomato"), SimpleObject("chair")))
+                )
+
+                assertDoesNotThrow {
+                    blockingTransaction {
+                        entities.forEach { entity -> ComplexTestTable.insert(entity) }
+
+                        val selectedEntities = ComplexTestTable.A.obtainListing(queryContext(), { Op.TRUE }, 10, 0,
+                            ComplexTestTable.name
+                        ).get()
+
+                        assertEquals (
+                            entities.map { it.uuid }.sorted(),
+                            selectedEntities.first.map { it.uuid }.sorted()
+                        )
+                    }
+                }
+            }
+
         }
 
     }

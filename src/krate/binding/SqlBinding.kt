@@ -87,7 +87,6 @@ sealed class SqlBinding<TEntity : Entity, TProperty : Any?, TColumn : Any?> (
 
     }
 
-
     /**
      * Binds [property] to [another table][otherTable] containing its entity values
      *
@@ -104,7 +103,6 @@ sealed class SqlBinding<TEntity : Entity, TProperty : Any?, TColumn : Any?> (
             ?: error("cannot make a ReferenceToMany SqlBinding: no foreign key from target table (${otherTable.tableName}) to PK of origin table (${table.tableName})")
 
     }
-
 
     /**
      * Binds [property] to [another table][otherTable] containing its values

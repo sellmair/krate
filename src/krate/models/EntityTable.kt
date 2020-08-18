@@ -1,11 +1,11 @@
 package krate.models
 
-import com.github.kittinunf.result.coroutines.SuspendableResult
 import krate.binding.SqlBinding
 import krate.optimizer.QueryOptimizer
 import krate.handling.query
 import krate.handling.unwrappedQuery
 import krate.binding.table
+import krate.binding.safeTable
 import krate.util.*
 
 import reflectr.entity.Entity
@@ -20,6 +20,7 @@ import org.jetbrains.exposed.sql.statements.UpdateBuilder
 
 import epgx.models.PgTable
 
+import com.github.kittinunf.result.coroutines.SuspendableResult
 import com.github.kittinunf.result.coroutines.map
 import com.github.kittinunf.result.coroutines.mapError
 
@@ -53,7 +54,9 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
     @Suppress("UNCHECKED_CAST")
     private fun isPolymorphicVariantTable() =
         this.klass.superclasses
-            .firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }?.let { true }
+            .firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }
+            ?.takeIf { (it as KClass<out Entity>).safeTable?.let { t -> t is PolymorphicEntityTable } ?: false }
+            ?.let { true }
             ?: false
 
     @Suppress("UNCHECKED_CAST")
@@ -62,6 +65,14 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
             this.klass.allSuperclasses.firstOrNull { it.isSubclassOf(Entity::class) && it.isSealed }
                 ?.let { it as KClass<Entity> }
         else null
+
+    @Suppress("UNCHECKED_CAST")
+    private val baseTable: PolymorphicEntityTable<TEntity> get() =
+        this.baseTableSealedClass?.table as? PolymorphicEntityTable<TEntity> ?: error("table is a polymorphic variant table but base table was not found")
+
+    @Suppress("UNCHECKED_CAST")
+    private val safeBaseTable: PolymorphicEntityTable<TEntity>? get() =
+        this.baseTableSealedClass?.table as? PolymorphicEntityTable<TEntity>
 
     /**
      * A list of all [bindings][SqlBinding] present for this table
@@ -116,7 +127,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         insertionFunction: (TEntity, TProperty, UpdateBuilder<Number>) -> Unit
     ): SqlBinding.OneToManyValues<TEntity, TProperty> {
         require (
-            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.OneToManyValues<*, *> && it.table == table } ?: true
+            safeBaseTable?.bindings?.any { it is SqlBinding.OneToManyValues<*, *> && it.table == table } ?: true
         ) { "cannot create a ReferenceToMany binding when base table already has a ReferenceToMany binding to the same table" }
 
         return SqlBinding.OneToManyValues(this@EntityTable, property, table, conversionFunction, insertionFunction)
@@ -136,7 +147,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         property: KProperty1<TEntity, Collection<TProperty>>
     ): SqlBinding.OneToMany<TEntity, TProperty> {
         require (
-            baseTableSealedClass?.table?.bindings?.any { it is SqlBinding.OneToManyValues<*, *> && it.table == table } ?: true
+            safeBaseTable?.bindings?.any { it is SqlBinding.OneToManyValues<*, *> && it.table == table } ?: true
         ) { "cannot create a ReferenceToMany binding when base table already has a ReferenceToMany binding to the same table" }
 
         return SqlBinding.OneToMany(this@EntityTable, property, table)
@@ -169,15 +180,28 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         page: Int,
         orderBy: Column<*>,
         sortOrder: SortOrder = SortOrder.ASC
-    ): Sr<Pair<List<TEntity>, Boolean>> = query {
-        QueryOptimizer.optimize(this.klass, selectCondition)
-            .orderBy(orderBy, sortOrder)
-            //               v-- We add one to check if we reached the end
-            .limit(quantity + 1, (page * quantity).toLong())
-            .toList()
-    }.map { results ->
-        QueryOptimizer.convertOptimizedRows(queryContext, klass, results)
-            .take(quantity) to (results.size - 1 == quantity)
+    ): Sr<Pair<List<TEntity>, Boolean>> {
+        return if (isPolymorphicVariantTable()) query {
+            baseTable.primaryKey
+
+            val baseRowSet = baseTable.innerJoin(this)
+                .select(selectCondition)
+                .orderBy(orderBy, sortOrder)
+                //               v-- We add one to check if we reached the end
+                .limit(quantity + 1, (page * quantity).toLong())
+                .toList().also { println(it.size) }
+
+            baseRowSet.map { this.convert(queryContext, it).get() } to false
+        } else query {
+            QueryOptimizer.optimize(this.klass, selectCondition)
+                .orderBy(orderBy, sortOrder)
+                //               v-- We add one to check if we reached the end
+                .limit(quantity + 1, (page * quantity).toLong())
+                .toList()
+        }.map { results ->
+            QueryOptimizer.convertOptimizedRows(queryContext, klass, results)
+                .take(quantity) to (results.size - 1 == quantity)
+        }
     }
 
     /**
@@ -188,7 +212,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      */
     open suspend fun obtain(queryContext: QueryContext, id: UUID): Sr<TEntity> =
         if (isPolymorphicVariantTable())
-            baseTableSealedClass?.table?.obtain(queryContext, id) as? Sr<TEntity> ?: error("cannot find base table")
+            baseTable.obtain(queryContext, id)
         else query {
             this.select { uuid eq id }.single()
         }.map { this.convert(queryContext, it).get() }
@@ -209,7 +233,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         fun <T> get(column: Column<T>) = if (aliasToUse != null) source[aliasToUse[column]] else source[column]
 
         // If we are a polymorphic variant table, we need to use both the bindings from the base table and this table
-        val bindingsData = (if (isPolymorphicVariantTable()) baseTableSealedClass!!.table.bindings + bindings else bindings).map {
+        val bindingsData = (if (isPolymorphicVariantTable()) baseTable.bindings + bindings else bindings).map {
             when (val binding = it) {
                 is SqlBinding.HasColumn<*> -> {
                     (binding.property.okHandle ?: never) to get(binding.column)
@@ -286,7 +310,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      */
     open suspend fun insert(entity: TEntity, forBinding: SqlBinding<*, *, *>? = null, parentEntity: Entity? = null): Sr<TEntity> = Wrap {
         if (isPolymorphicVariantTable())
-            return@Wrap this.baseTableSealedClass?.table?.insert(entity) ?: error("cannot access base table")
+            return@Wrap this.baseTable.insert(entity)
 
         require (forBinding == null || parentEntity != null) { "call to insert() for a binding must specify parent entity" }
 
@@ -295,12 +319,19 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         }.size == 1
 
         if (entityExistsInDb) {
-            var message = "entity '${entity.uuid}' of type '${entity::class.simpleName}' already exists in table '${this.tableName}'"
-            if (forBinding != null) {
-                message += " (while applying binding of type ${forBinding::class.simpleName} on property ${forBinding.property.klass.simpleName}::${forBinding.property.name})"
-            }
+            when (forBinding) {
+                is SqlBinding.OneToOne,
+                is SqlBinding.OneToOneOrNone,
+                is SqlBinding.OneToMany<*, *>, // OneToX and parent insertion require entity to not already exist in DB
+                null -> {
+                    var message = "entity '${entity.uuid}' of type '${entity::class.simpleName}' already exists in table '${this.tableName}'"
+                    if (forBinding != null)
+                        message += " (while applying binding of type ${forBinding::class.simpleName} on property ${forBinding.property.klass.simpleName}::${forBinding.property.name})"
 
-            throw IllegalStateException(message)
+                    throw IllegalStateException(message)
+                }
+                else -> never
+            }
         }
 
         @Suppress("UNCHECKED_CAST")
@@ -355,7 +386,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
      */
     open suspend fun update(entity: TEntity): Sr<TEntity> = query {
         if (isPolymorphicVariantTable())
-            return@query this.baseTableSealedClass?.table?.update(entity) ?: error("cannot access base table")
+            return@query this.baseTable.update(entity)
 
         this.update({ uuid eq entity.uuid }) {
             for (binding in bindings) {
@@ -394,7 +425,7 @@ abstract class EntityTable<TEntity : Entity>(val klass: KClass<out TEntity>, nam
         }
 
         if (isPolymorphicVariantTable())
-            baseTableSealedClass?.table?.delete(entity)
+            baseTable.delete(entity)
     }.assertGet().let { true }
 
     val uuid = uuid("uuid")

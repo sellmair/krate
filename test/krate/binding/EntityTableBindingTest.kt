@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 
 import org.jetbrains.exposed.sql.deleteAll
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
 import java.lang.IllegalStateException
@@ -59,8 +60,8 @@ class EntityTableBindingTest : DatabaseConnectedTest(Cities, Houses, People) {
 
     object Cities : EntityTable<City>(City::class, name = "cities") {
 
-        val name       = text ("name")
-        val population = integer("population")
+        val name       = text    ("name")
+        val population = integer ("population")
 
         init {
             bind(uuid, City::uuid)
@@ -111,7 +112,7 @@ class EntityTableBindingTest : DatabaseConnectedTest(Cities, Houses, People) {
         assertEquals(setOf(rose, ben).map { it.name }, selectedHouse.occupants.map { it.name })
     }
 
-    @Test fun `should not insert and select with existing child entities properly`() = runBlocking(TestCoroutineDispatcher()) {
+    @Test fun `should not insert and select with existing child one-to-X entities`() = runBlocking(TestCoroutineDispatcher()) {
         val rose = Person("Rose")
         val ben = Person("Ben")
 
@@ -126,9 +127,14 @@ class EntityTableBindingTest : DatabaseConnectedTest(Cities, Houses, People) {
 
         assertThrows(IllegalStateException::class.java) {
             blockingTransaction {
+                People.insert(rose)
+                People.insert(ben)
+
+                Cities.insert(city)
+
                 Houses.insert(house).get()
             }
-        }
+        }.let { Unit }
     }
 
     @Test fun `should obtain listing properly`() = runBlocking(TestCoroutineDispatcher()) {

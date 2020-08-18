@@ -10,7 +10,7 @@ aux_links:
   "GitHub":
     - "//github.com/blogify-dev/krate"
 
-footer_content: Licenced under <a href="https://github.com/blogify-dev/krate/tree/master/LICENSE">GPL 3 license.</a>
+footer_content: Licenced under <a href="https://github.com/blogify-dev/krate/tree/master/LICENSE">LGPL-3.0 license.</a>
 
 back_to_top: true
 back_to_top_text: "Back to top"
