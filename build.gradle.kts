@@ -19,9 +19,9 @@ plugins {
     `maven-publish`
     `java-library`
 
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.0"
 
-    id("org.jetbrains.dokka") version "0.10.1"
+    id("org.jetbrains.dokka") version "1.4.0-rc"
 }
 
 group = "dev.31416"
@@ -111,40 +111,42 @@ tasks {
         }
     }
 
-    @Suppress("UNUSED_VARIABLE")
-    val dokka by getting(DokkaTask::class) {
-        outputFormat = "jekyll"
-        outputDirectory = "docs/"
+    dokkaHtml {
+        outputDirectory = "$buildDir/dokka"
 
-        configuration {
-            skipDeprecated = true
+        dokkaSourceSets {
+            configureEach {
+                includeNonPublic = false
 
-            reportUndocumented = false
+                skipDeprecated = true
 
-            skipEmptyPackages = true
+                skipEmptyPackages = true
 
-            includes = listOf("docs/krate.md")
+                jdkVersion = 8
 
-            externalDocumentationLink {
-                url = URL("https://docs.31416.dev/reflectr/")
-            }
+                includes = listOf("docs/krate.md")
 
-            perPackageOption {
-                prefix   = "krate.annotations"
-                suppress = true
-            }
+                externalDocumentationLink {
+                    url = URL("https://docs.31416.dev/reflectr/")
+                }
 
-            perPackageOption {
-                prefix   = "krate.util"
-                suppress = true
-            }
+                perPackageOption {
+                    prefix   = "krate.annotations"
+                    suppress = true
+                }
 
-            sourceLink {
-                path = "./"
+                perPackageOption {
+                    prefix   = "krate.util"
+                    suppress = true
+                }
 
-                url = "https://github.com/blogify-dev/krate/blob/master/"
+                sourceLink {
+                    path = "./"
 
-                lineSuffix = "#L"
+                    url = "https://github.com/blogify-dev/krate/blob/master/"
+
+                    lineSuffix = "#L"
+                }
             }
         }
     }
