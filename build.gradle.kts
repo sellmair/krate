@@ -4,16 +4,16 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.dokka.gradle.DokkaTask
 import java.net.URL
 
-val kolor_version:      String by project
-val result_version:     String by project
-val pg_driver_version:  String by project
-val exposed_version:    String by project
-val hikari_version:     String by project
-val epgx_version:       String by project
+val kolor_version: String by project
+val result_version: String by project
+val pg_driver_version: String by project
+val exposed_version: String by project
+val hikari_version: String by project
+val epgx_version: String by project
 val coroutines_version: String by project
-val junit_version:      String by project
-val logback_version:    String by project
-val jackson_version:    String by project
+val junit_version: String by project
+val logback_version: String by project
+val jackson_version: String by project
 
 plugins {
     `maven-publish`
@@ -21,7 +21,7 @@ plugins {
 
     kotlin("jvm") version "1.4.0"
 
-    id("org.jetbrains.dokka") version "1.4.0-rc"
+    id("org.jetbrains.dokka") version "1.4.10-SNAPSHOT"
 }
 
 group = "dev.31416"
@@ -112,40 +112,34 @@ tasks {
     }
 
     dokkaHtml {
-        outputDirectory = "$buildDir/dokka"
+        outputDirectory.set(buildDir.resolve("dokka"))
 
         dokkaSourceSets {
             configureEach {
-                includeNonPublic = false
+                includeNonPublic.set(false)
 
-                skipDeprecated = true
+                skipDeprecated.set(true)
 
-                skipEmptyPackages = true
+                skipEmptyPackages.set(true)
 
-                jdkVersion = 8
+                jdkVersion.set(8)
 
-                includes = listOf("docs/krate.md")
+                includes.from("docs/krate.md")
 
-                externalDocumentationLink {
-                    url = URL("https://docs.31416.dev/reflectr/")
+                perPackageOption {
+                    prefix.set("krate.annotations")
+                    suppress.set(true)
                 }
 
                 perPackageOption {
-                    prefix   = "krate.annotations"
-                    suppress = true
-                }
-
-                perPackageOption {
-                    prefix   = "krate.util"
-                    suppress = true
+                    prefix.set("krate.util")
+                    suppress.set(true)
                 }
 
                 sourceLink {
-                    path = "./"
-
-                    url = "https://github.com/blogify-dev/krate/blob/master/"
-
-                    lineSuffix = "#L"
+                    localDirectory.set(projectDir)
+                    remoteUrl.set(URL("https://github.com/blogify-dev/krate/blob/master/"))
+                    remoteLineSuffix.set("#L")
                 }
             }
         }
